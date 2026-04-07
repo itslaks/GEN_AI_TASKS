@@ -1,0 +1,58 @@
+# Core Web Framework
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv
+
+# LLM & AI
+langchain
+langchain-groq
+langchain-community
+groq
+
+# Data Processing
+numpy
+scipy
+pandas
+
+# Embeddings & Vector DB
+sentence-transformers
+faiss-cpu
+
+# Data Validation
+pydantic
+
+# Utilities
+requests
+jinja2
+requests
+httpx
+pydantic
+python-dotenv
+tmdbv3api
+APScheduler
+aiohttp
+redis
+hiredis
+python-json-logger
+marshmallow
+pytest
+pytest-asyncio
+pytest-cov
+respx
+black
+flake8
+isort
+python-dotenv
+
+
+
+
+fastapi
+uvicorn[standard]
+httpx
+pydantic
+pydantic-settings
+langchain
+langchain-groq
+langchain-community
