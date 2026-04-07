@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MathSolve · CoT Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #080b10;
+      --surface:    #0d1117;
+      --panel:      #111620;
+      --border:     #1e2736;
+
+      --cyan:       #00ffe7;
+      --cyan-dim:   rgba(0,255,231,0.12);
+      --cyan-glow:  rgba(0,255,231,0.35);
+
+      --violet:     #bf5fff;
+      --violet-dim: rgba(191,95,255,0.12);
+      --violet-glow:rgba(191,95,255,0.35);
+
+      --amber:      #ffb830;
+      --amber-dim:  rgba(255,184,48,0.12);
+      --amber-glow: rgba(255,184,48,0.30);
+
+      --green:      #39ff6e;
+      --green-dim:  rgba(57,255,110,0.10);
+
+      --red:        #ff4a6e;
+      --red-dim:    rgba(255,74,110,0.12);
+
+      --text:       #cdd5e0;
+      --text-muted: #5a6680;
+
+      --mono: 'Space Mono', monospace;
+      --sans: 'Syne', sans-serif;
+
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 16px 60px;
+      /* subtle grid texture */
+      background-image:
+        linear-gradient(rgba(0,255,231,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,231,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    header {
+      width: 100%;
+      max-width: 780px;
+      padding: 48px 0 32px;
+      text-align: center;
+    }
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--cyan);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      background: var(--cyan-dim);
+      border: 1px solid rgba(0,255,231,0.2);
+      padding: 5px 14px;
+      border-radius: 100px;
+      margin-bottom: 20px;
+    }
+    .logo-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; } 50% { opacity:0.3; }
+    }
+    h1 {
+      font-size: clamp(32px, 6vw, 56px);
+      font-weight: 800;
+      line-height: 1.05;
+      background: linear-gradient(135deg, #fff 30%, var(--cyan) 70%, var(--violet) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 15px;
+      font-weight: 400;
+      font-family: var(--mono);
+    }
+
+    /* ── Main card ─────────────────────────────────────────────── */
+    main {
+      width: 100%;
+      max-width: 780px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0,255,231,0.03) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* ── Input section ─────────────────────────────────────────── */
+    .input-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 12px;
+    }
+    .input-label .icon {
+      font-size: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      background: var(--surface);
+      border: 1px solid rgba(0,255,231,0.2);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 14px 16px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    textarea:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px var(--cyan-dim), 0 0 20px var(--cyan-glow);
+    }
+    textarea::placeholder { color: var(--text-muted); }
+
+    .example-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .pill-btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 4px 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .pill-btn:hover {
+      color: var(--cyan);
+      border-color: rgba(0,255,231,0.3);
+      background: var(--cyan-dim);
+    }
+
+    /* ── Solve button ──────────────────────────────────────────── */
+    .btn-solve {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, rgba(0,255,231,0.15), rgba(191,95,255,0.15));
+      border: 1px solid var(--cyan);
+      border-radius: var(--radius-sm);
+      color: var(--cyan);
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 0 20px rgba(0,255,231,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-solve::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--cyan-dim), var(--violet-dim));
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .btn-solve:hover:not(:disabled)::after { opacity: 1; }
+    .btn-solve:hover:not(:disabled) {
+      box-shadow: 0 0 30px var(--cyan-glow), 0 0 60px rgba(0,255,231,0.15);
+      transform: translateY(-1px);
+    }
+    .btn-solve:active:not(:disabled) { transform: translateY(0); }
+    .btn-solve:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* ── Loading ───────────────────────────────────────────────── */
+    .loader {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 32px;
+      text-align: center;
+    }
+    .loader.active { display: flex; }
+    .loader-ring {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--cyan);
+      border-right-color: var(--violet);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+    }
+    .loader-dots::after {
+      content: '';
+      animation: dots 1.2s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0%   { content: ''; }
+      25%  { content: '.'; }
+      50%  { content: '..'; }
+      75%  { content: '...'; }
+      100% { content: ''; }
+    }
+
+    /* ── Results ───────────────────────────────────────────────── */
+    #results { display: none; }
+    #results.active { display: flex; flex-direction: column; gap: 16px; }
+
+    /* Final Answer */
+    .answer-card {
+      background: var(--surface);
+      border: 1px solid rgba(0,255,231,0.3);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      box-shadow: 0 0 30px rgba(0,255,231,0.08), inset 0 1px 0 rgba(0,255,231,0.1);
+    }
+    .section-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .answer-label { color: var(--cyan); }
+    .steps-label  { color: var(--violet); }
+    .verify-label { color: var(--amber); }
+
+    .answer-text {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--cyan);
+      text-shadow: 0 0 20px var(--cyan-glow);
+      word-break: break-word;
+    }
+
+    /* Steps */
+    .steps-card {
+      background: var(--surface);
+      border: 1px solid rgba(191,95,255,0.2);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      box-shadow: 0 0 30px rgba(191,95,255,0.05);
+    }
+    .steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      list-style: none;
+    }
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      animation: slideIn 0.3s ease both;
+    }
+    .step-item:nth-child(1) { animation-delay: 0.05s; }
+    .step-item:nth-child(2) { animation-delay: 0.10s; }
+    .step-item:nth-child(3) { animation-delay: 0.15s; }
+    .step-item:nth-child(4) { animation-delay: 0.20s; }
+    .step-item:nth-child(5) { animation-delay: 0.25s; }
+    .step-item:nth-child(6) { animation-delay: 0.30s; }
+    @keyframes slideIn {
+      from { opacity:0; transform: translateX(-12px); }
+      to   { opacity:1; transform: translateX(0); }
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      background: var(--violet-dim);
+      border: 1px solid rgba(191,95,255,0.3);
+      color: var(--violet);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-text {
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text);
+      padding-top: 4px;
+    }
+
+    /* Verification */
+    .verify-card {
+      background: var(--surface);
+      border: 1px solid rgba(255,184,48,0.2);
+      border-radius: var(--radius);
+      padding: 16px 24px;
+      box-shadow: 0 0 20px rgba(255,184,48,0.05);
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .verify-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 6px var(--amber-glow));
+    }
+    .verify-text {
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--amber);
+      font-family: var(--mono);
+    }
+
+    /* Error */
+    .error-card {
+      display: none;
+      background: var(--red-dim);
+      border: 1px solid rgba(255,74,110,0.3);
+      border-radius: var(--radius);
+      padding: 16px 24px;
+      gap: 12px;
+      align-items: center;
+    }
+    .error-card.active { display: flex; }
+    .error-icon { font-size: 18px; flex-shrink: 0; }
+    .error-text {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--red);
+      line-height: 1.4;
+    }
+
+    /* ── Footer ────────────────────────────────────────────────── */
+    footer {
+      width: 100%;
+      max-width: 780px;
+      text-align: center;
+      margin-top: 40px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+    footer span { color: var(--cyan); }
+
+    /* ── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 500px) {
+      .card { padding: 16px; }
+      .answer-text { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-badge">CoT Engine · v1.0</div>
+    <h1>MathSolve</h1>
+    <p class="subtitle">Chain-of-Thought · Groq · Llama 3.3-70B</p>
+  </header>
+
+  <main>
+
+    <!-- Input card -->
+    <div class="card">
+      <div class="input-label">
+        <span class="icon">⟁</span>
+        Math Problem
+      </div>
+      <textarea
+        id="problemInput"
+        placeholder="e.g. A train travels 300 km at 60 km/h. How long does it take? Or: solve 3x² - 12 = 0"
+        spellcheck="false"
+      ></textarea>
+
+      <div class="example-pills">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text-muted);align-self:center;">try:</span>
+        <button class="pill-btn" onclick="fillExample(this)">2x² + 5x - 3 = 0</button>
+        <button class="pill-btn" onclick="fillExample(this)">Train: 300 km @ 60 km/h, how many hours?</button>
+        <button class="pill-btn" onclick="fillExample(this)">Compound interest: $1000, 5%, 3 years</button>
+        <button class="pill-btn" onclick="fillExample(this)">Find area of circle with radius 7</button>
+      </div>
+    </div>
+
+    <!-- Solve button -->
+    <button class="btn-solve" id="solveBtn" onclick="solve()">
+      <span>⚡</span>
+      <span>Solve Problem</span>
+    </button>
+
+    <!-- Error display -->
+    <div class="error-card" id="errorCard">
+      <span class="error-icon">⚠</span>
+      <div class="error-text" id="errorText"></div>
+    </div>
+
+    <!-- Loader -->
+    <div class="card loader" id="loader">
+      <div class="loader-ring"></div>
+      <div class="loader-text">REASONING<span class="loader-dots"></span></div>
+    </div>
+
+    <!-- Results -->
+    <div id="results">
+
+      <!-- Final Answer -->
+      <div class="answer-card">
+        <div class="section-label answer-label">⬡ Final Answer</div>
+        <div class="answer-text" id="finalAnswer"></div>
+      </div>
+
+      <!-- Step Summary -->
+      <div class="steps-card">
+        <div class="section-label steps-label">◈ Step Summary</div>
+        <ul class="steps-list" id="stepsList"></ul>
+      </div>
+
+      <!-- Verification (conditionally shown) -->
+      <div class="verify-card" id="verifyCard" style="display:none">
+        <span class="verify-icon">✓</span>
+        <div>
+          <div class="section-label verify-label" style="margin-bottom:6px">Verification</div>
+          <div class="verify-text" id="verifyText"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer>
+    Built with <span>FastAPI</span> · <span>Groq</span> · Chain-of-Thought Prompting
+  </footer>
+
+  <script>
+    const API_BASE = 'http://localhost:8000';
+
+    function fillExample(btn) {
+      document.getElementById('problemInput').value = btn.textContent.trim();
+      document.getElementById('problemInput').focus();
+    }
+
+    function setLoading(on) {
+      const btn    = document.getElementById('solveBtn');
+      const loader = document.getElementById('loader');
+      btn.disabled = on;
+      btn.innerHTML = on
+        ? '<span>◌</span><span>Solving…</span>'
+        : '<span>⚡</span><span>Solve Problem</span>';
+      loader.classList.toggle('active', on);
+    }
+
+    function showError(msg) {
+      const card = document.getElementById('errorCard');
+      document.getElementById('errorText').textContent = msg;
+      card.classList.add('active');
+    }
+
+    function clearError() {
+      document.getElementById('errorCard').classList.remove('active');
+    }
+
+    function showResults(data) {
+      const results = document.getElementById('results');
+      results.classList.add('active');
+
+      // Final Answer
+      document.getElementById('finalAnswer').textContent = data.final_answer;
+
+      // Steps
+      const list = document.getElementById('stepsList');
+      list.innerHTML = '';
+      (data.step_summary || []).forEach((step, i) => {
+        const li = document.createElement('li');
+        li.className = 'step-item';
+        li.innerHTML = `
+          <div class="step-num">${i + 1}</div>
+          <div class="step-text">${escapeHtml(step)}</div>
+        `;
+        list.appendChild(li);
+      });
+
+      // Verification
+      const vCard = document.getElementById('verifyCard');
+      const vText = document.getElementById('verifyText');
+      if (data.verification) {
+        vText.textContent = data.verification;
+        vCard.style.display = 'flex';
+      } else {
+        vCard.style.display = 'none';
+      }
+    }
+
+    function clearResults() {
+      const results = document.getElementById('results');
+      results.classList.remove('active');
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    async function solve() {
+      const problem = document.getElementById('problemInput').value.trim();
+      if (!problem) {
+        showError('Please enter a math problem first.');
+        return;
+      }
+
+      clearError();
+      clearResults();
+      setLoading(true);
+
+      try {
+        const resp = await fetch(`${API_BASE}/solve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ problem }),
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          const msg = data?.detail || `Server error (${resp.status})`;
+          showError(msg);
+          return;
+        }
+
+        showResults(data);
+
+      } catch (err) {
+        if (err.name === 'TypeError') {
+          showError('Cannot reach the backend. Is it running on localhost:8000?');
+        } else {
+          showError(`Unexpected error: ${err.message}`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Allow Ctrl+Enter to submit
+    document.getElementById('problemInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) solve();
+    });
+  </script>
+
+</body>
+</html>

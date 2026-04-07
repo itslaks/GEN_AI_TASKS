@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support Chatbot - Three Prompt Patterns</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #f0f0f0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        header {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #e8ff00;
+            box-shadow: 0 0 20px rgba(232, 255, 0, 0.3);
+        }
+
+        h1 {
+            color: #e8ff00;
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(232, 255, 0, 0.5);
+        }
+
+        .subtitle {
+            color: #b0b0b0;
+            font-size: 14px;
+        }
+
+        .pattern-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .pattern-btn {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #555;
+            border-radius: 8px;
+            color: #f0f0f0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .pattern-btn:hover {
+            border-color: #e8ff00;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(232, 255, 0, 0.2);
+        }
+
+        .pattern-btn.active {
+            background: rgba(232, 255, 0, 0.15);
+            border-color: #e8ff00;
+            box-shadow: 0 0 20px rgba(232, 255, 0, 0.4);
+        }
+
+        .pattern-name {
+            font-weight: bold;
+            color: #e8ff00;
+            margin-bottom: 5px;
+        }
+
+        .pattern-desc {
+            font-size: 12px;
+            color: #b0b0b0;
+        }
+
+        .chat-container {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #e8ff00;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(232, 255, 0, 0.2);
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message-content {
+            display: inline-block;
+            padding: 12px 18px;
+            border-radius: 10px;
+            max-width: 80%;
+            text-align: left;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #e8ff00 0%, #d4e600 100%);
+            color: #000;
+            font-weight: 500;
+        }
+
+        .message.bot .message-content {
+            background: rgba(232, 255, 0, 0.1);
+            border: 1px solid #e8ff00;
+            color: #f0f0f0;
+        }
+
+        .message.bot .message-content h2 {
+            color: #e8ff00;
+            font-size: 16px;
+            margin: 15px 0 10px 0;
+            border-bottom: 1px solid #e8ff00;
+            padding-bottom: 5px;
+        }
+
+        .message.bot .message-content h2:first-child {
+            margin-top: 0;
+        }
+
+        .message.bot .message-content ul {
+            margin: 10px 0 10px 20px;
+        }
+
+        .message.bot .message-content li {
+            margin: 5px 0;
+        }
+
+        .input-container {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-top: 1px solid #e8ff00;
+            display: flex;
+            gap: 10px;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 15px;
+            background: rgba(232, 255, 0, 0.1);
+            border: 2px solid #555;
+            border-radius: 8px;
+            color: #f0f0f0;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #messageInput:focus {
+            border-color: #e8ff00;
+            box-shadow: 0 0 10px rgba(232, 255, 0, 0.3);
+        }
+
+        #sendBtn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #e8ff00 0%, #d4e600 100%);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        #sendBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(232, 255, 0, 0.5);
+        }
+
+        #sendBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            padding: 10px 20px;
+            background: rgba(232, 255, 0, 0.1);
+            border: 1px solid #e8ff00;
+            border-radius: 8px;
+            color: #e8ff00;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #e8ff00;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #d4e600;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .pattern-btn {
+                min-width: 100%;
+            }
+
+            .message-content {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Customer Support Chatbot</h1>
+            <p class="subtitle">Three distinct prompt engineering patterns powered by Groq AI</p>
+        </header>
+
+        <div class="pattern-selector" id="patternSelector">
+            <button class="pattern-btn active" data-pattern="react">
+                <div class="pattern-name">🔧 ReAct Pattern</div>
+                <div class="pattern-desc">Tool-using agent with reasoning traces</div>
+            </button>
+            <button class="pattern-btn" data-pattern="cot">
+                <div class="pattern-name">🧠 Chain-of-Thought</div>
+                <div class="pattern-desc">Step-by-step internal reasoning with summary</div>
+            </button>
+            <button class="pattern-btn" data-pattern="reflect">
+                <div class="pattern-name">✨ Self-Reflecting</div>
+                <div class="pattern-desc">Critique and revise for polished responses</div>
+            </button>
+        </div>
+
+        <div class="chat-container">
+            <div class="messages" id="messages"></div>
+            <div class="input-container">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Type your support question... (e.g., 'I need to check my order status')"
+                    autocomplete="off"
+                />
+                <button id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPattern = 'react';
+        const messagesContainer = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        // Pattern selection
+        document.querySelectorAll('.pattern-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentPattern = btn.dataset.pattern;
+                addMessage('system', `Switched to ${btn.querySelector('.pattern-name').textContent}`);
+            });
+        });
+
+        // Add message to chat
+        function addMessage(type, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (type === 'bot') {
+                // Parse markdown-style headers
+                content = content.replace(/## (.*?)(\n|$)/g, '<h2>$1</h2>');
+                contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            } else {
+                contentDiv.textContent = content;
+            }
+            
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Send message
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            addMessage('user', message);
+            messageInput.value = '';
+            sendBtn.disabled = true;
+
+            // Add loading indicator
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot';
+            loadingDiv.innerHTML = '<div class="loading">Thinking...</div>';
+            messagesContainer.appendChild(loadingDiv);
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        pattern: currentPattern
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                
+                // Remove loading indicator
+                messagesContainer.removeChild(loadingDiv);
+                
+                // Add bot response
+                addMessage('bot', data.response);
+            } catch (error) {
+                messagesContainer.removeChild(loadingDiv);
+                addMessage('bot', `Error: ${error.message}. Please check that your GROQ_API_KEY is set correctly.`);
+            }
+
+            sendBtn.disabled = false;
+            messageInput.focus();
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Welcome message
+        addMessage('bot', 'Hello! 👋 I\'m your customer support assistant. I can help with orders, refunds, subscriptions, billing, and more. Select a prompt pattern above and ask me anything!');
+    </script>
+</body>
+</html>

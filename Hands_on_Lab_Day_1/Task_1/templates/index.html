@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Task 1: Reasoning Agent Web App</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f7fb; color: #222; }
+      .container { max-width: 900px; margin: 40px auto; padding: 24px; background: white; border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,0.08); }
+      h1, h2 { margin-top: 0; }
+      .section { margin-bottom: 24px; }
+      .prompt-box { width: 100%; min-height: 96px; padding: 14px; font-size: 16px; border: 1px solid #ccd6dd; border-radius: 8px; }
+      .button { display: inline-block; background: #2563eb; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+      .button:hover { background: #1d4ed8; }
+      .step { background: #f8fafc; border-left: 4px solid #2563eb; margin-bottom: 12px; padding: 14px; border-radius: 8px; }
+      .step-type { font-weight: bold; margin-bottom: 6px; }
+      .final { background: #ecfdf5; border-left-color: #16a34a; }
+      .note { color: #475569; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Task 1: Reasoning Agent Web Application</h1>
+      <p class="note">Enter a question and the agent will execute reasoning and web search actions in a structured ReAct loop.</p>
+
+      <div class="section">
+        <form method="post">
+          <textarea name="question" class="prompt-box" placeholder="Ask a factual or conceptual question..." required>{{ result.question if result else '' }}</textarea>
+          <div style="margin-top: 12px;"><button class="button" type="submit">Submit</button></div>
+        </form>
+      </div>
+
+      {% if result %}
+        <div class="section">
+          <h2>Agent Trace</h2>
+          {% for step in result.steps %}
+            <div class="step {% if step.type == 'Final Answer' %}final{% endif %}">
+              <div class="step-type">{{ step.type }}</div>
+              <div>{{ step.text }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </body>
+</html>
