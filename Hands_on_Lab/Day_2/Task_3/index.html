@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEXUS · Hybrid Search Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  /* ── Reset & Variables ─────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #050508;
+    --bg2: #0a0a0f;
+    --bg3: #0f0f1a;
+    --panel: #111120;
+    --panel2: #161628;
+    --border: #1e1e3a;
+    --border2: #2a2a50;
+    --accent: #6c63ff;
+    --accent2: #00e5ff;
+    --accent3: #ff6b9d;
+    --accent4: #39ff14;
+    --text: #e8e8f5;
+    --text2: #8888aa;
+    --text3: #5555778;
+    --glow: rgba(108, 99, 255, 0.4);
+    --glow2: rgba(0, 229, 255, 0.3);
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated Background Grid ───────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(108,99,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(108,99,255,0.12) 0%, transparent 60%);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ── Scanlines overlay ───────────────────────────────── */
+  .scanlines {
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.4;
+  }
+
+  /* ── Layout ─────────────────────────────────────────── */
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── Header ─────────────────────────────────────────── */
+  header {
+    padding: 40px 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .logo-text {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    background: linear-gradient(135deg, #6c63ff 0%, #00e5ff 50%, #ff6b9d 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    background: var(--accent4);
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--accent4);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+
+  .logo-sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text2);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .stats-bar {
+    display: flex;
+    gap: 24px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+
+  .stat-num {
+    color: var(--accent2);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  /* ── Main Grid ───────────────────────────────────────── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
+    padding: 28px 0;
+    min-height: calc(100vh - 160px);
+    align-items: start;
+  }
+
+  /* ── Sidebar ─────────────────────────────────────────── */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 24px;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+  }
+
+  .panel-title {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text2);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::before {
+    content: '';
+    width: 6px; height: 6px;
+    border: 1.5px solid var(--accent);
+    border-radius: 50%;
+  }
+
+  /* ── Category Filters ───────────────────────────────── */
+  .cat-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .cat-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    letter-spacing: 0.05em;
+  }
+
+  .cat-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+    background: rgba(108,99,255,0.1);
+  }
+
+  .cat-btn.active {
+    border-color: var(--accent);
+    background: rgba(108,99,255,0.15);
+    color: var(--accent2);
+    box-shadow: 0 0 12px rgba(108,99,255,0.2);
+  }
+
+  .cat-count {
+    background: var(--border2);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 9px;
+    color: var(--text2);
+  }
+
+  .cat-btn.active .cat-count {
+    background: rgba(108,99,255,0.3);
+    color: var(--accent2);
+  }
+
+  /* ── Alpha Slider ────────────────────────────────────── */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .slider-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text2);
+    white-space: nowrap;
+  }
+
+  .slider-val {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent2);
+    min-width: 30px;
+    text-align: right;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border2);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--glow);
+    cursor: pointer;
+  }
+
+  .blend-bar {
+    display: flex;
+    height: 24px;
+    border-radius: 6px;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+
+  .blend-vec {
+    background: rgba(108,99,255,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent2);
+    transition: width 0.3s;
+  }
+
+  .blend-bm25 {
+    background: rgba(255,107,157,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent3);
+    transition: width 0.3s;
+    flex: 1;
+  }
+
+  /* ── Top-K ───────────────────────────────────────────── */
+  .topk-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .topk-btn {
+    flex: 1;
+    min-width: 36px;
+    padding: 6px 0;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .topk-btn:hover { border-color: var(--accent); color: var(--text); }
+  .topk-btn.active {
+    border-color: var(--accent2);
+    background: rgba(0,229,255,0.1);
+    color: var(--accent2);
+  }
+
+  /* ── Search Panel ────────────────────────────────────── */
+  .content { display: flex; flex-direction: column; gap: 20px; }
+
+  .search-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .search-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+  }
+
+  .search-input-wrap {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .search-icon {
+    color: var(--text2);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  #searchInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    caret-color: var(--accent2);
+  }
+
+  #searchInput::placeholder { color: var(--text2); font-weight: 400; }
+
+  .search-btn {
+    background: linear-gradient(135deg, var(--accent), #4a45cc);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 24px;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(108,99,255,0.4);
+    white-space: nowrap;
+  }
+
+  .search-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 28px rgba(108,99,255,0.6);
+  }
+
+  .search-btn:active { transform: translateY(0); }
+
+  .search-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .suggestions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .sug-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text2);
+    align-self: center;
+    letter-spacing: 0.1em;
+  }
+
+  .sug-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    color: var(--text2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .sug-btn:hover {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    background: rgba(0,229,255,0.05);
+  }
+
+  /* ── AI Summary ─────────────────────────────────────── */
+  .ai-summary {
+    background: linear-gradient(135deg, rgba(108,99,255,0.08) 0%, rgba(0,229,255,0.05) 100%);
+    border: 1px solid rgba(108,99,255,0.3);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: none;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .ai-summary.visible { display: flex; }
+
+  .ai-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .ai-text {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  .ai-badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  /* ── Results Header ─────────────────────────────────── */
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px;
+  }
+
+  .results-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+  }
+
+  .results-count span { color: var(--accent2); font-weight: 700; }
+
+  .sort-toggle {
+    display: flex;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .sort-btn {
+    padding: 5px 12px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text2);
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+  }
+
+  .sort-btn.active {
+    background: rgba(108,99,255,0.2);
+    color: var(--accent2);
+  }
+
+  /* ── Result Cards ────────────────────────────────────── */
+  .results-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .result-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+    animation: cardIn 0.4s ease both;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-card:hover {
+    border-color: var(--border2);
+    background: var(--panel2);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .result-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent), var(--accent2));
+    border-radius: 2px 0 0 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .result-card:hover::before { opacity: 1; }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .card-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .tag {
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .tag-cat {
+    background: rgba(108,99,255,0.15);
+    border: 1px solid rgba(108,99,255,0.3);
+    color: var(--accent);
+  }
+
+  .tag-brand {
+    background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.2);
+    color: var(--accent2);
+  }
+
+  .card-rank {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text2);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+
+  .card-text {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+
+  .card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .score-bars {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .score-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 80px;
+  }
+
+  .score-label {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--text2);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .score-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .score-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .fill-hybrid { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .fill-vec { background: var(--accent); }
+  .fill-bm25 { background: var(--accent3); }
+
+  .score-num {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text2);
+    margin-top: 1px;
+  }
+
+  .price-badge {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent4);
+  }
+
+  .rating-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .rating-badge span { color: #ffd700; }
+
+  /* ── Loading ─────────────────────────────────────────── */
+  .loading {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 20px;
+  }
+
+  .loading.visible { display: flex; }
+
+  .loader-ring {
+    width: 48px; height: 48px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-right-color: var(--accent2);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text2);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  /* ── Empty State ─────────────────────────────────────── */
+  .empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    gap: 16px;
+    color: var(--text2);
+    text-align: center;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    opacity: 0.3;
+    filter: grayscale(1);
+  }
+
+  .empty-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text2);
+  }
+
+  .empty-sub {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── Error ───────────────────────────────────────────── */
+  .error-box {
+    background: rgba(255,60,60,0.08);
+    border: 1px solid rgba(255,60,60,0.3);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #ff6b6b;
+    display: none;
+  }
+
+  .error-box.visible { display: block; }
+
+  /* ── Connection Badge ────────────────────────────────── */
+  .conn-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text2);
+  }
+
+  .conn-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #555;
+    transition: background 0.3s;
+  }
+
+  .conn-dot.online { background: var(--accent4); box-shadow: 0 0 6px var(--accent4); }
+  .conn-dot.offline { background: #ff4444; }
+
+  /* ── Scrollbar ───────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  /* ── Responsive ─────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .sidebar { position: static; }
+    .stats-bar { display: none; }
+    .score-bars { gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+
+<div class="app">
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div>
+        <div class="logo-text">NEXUS</div>
+        <div class="logo-sub">Hybrid Search Engine · v2.0</div>
+      </div>
+      <div class="logo-dot"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="stats-bar">
+        <div class="stat-item">
+          <span class="stat-num" id="statDocs">—</span>
+          <span>documents</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="statCats">—</span>
+          <span>categories</span>
+        </div>
+      </div>
+      <div class="conn-badge">
+        <div class="conn-dot" id="connDot"></div>
+        <span id="connText">connecting</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="main-grid">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+      <!-- Categories -->
+      <div class="panel">
+        <div class="panel-title">Category Filter</div>
+        <div class="cat-grid" id="catGrid">
+          <button class="cat-btn active" data-cat="" onclick="selectCat(this)">
+            All Categories
+            <span class="cat-count" id="countAll">—</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Alpha Blend -->
+      <div class="panel">
+        <div class="panel-title">Search Blend</div>
+        <div class="slider-row">
+          <span class="slider-label">VEC</span>
+          <input type="range" id="alphaSlider" min="0" max="100" value="50" oninput="updateAlpha()" />
+          <span class="slider-label">BM25</span>
+        </div>
+        <div class="blend-bar" id="blendBar">
+          <div class="blend-vec" id="blendVec">VEC</div>
+          <div class="blend-bm25" id="blendBm25">BM25</div>
+        </div>
+        <div style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--text2);text-align:center;">
+          α = <span id="alphaVal" style="color:var(--accent2);">0.50</span>
+        </div>
+      </div>
+
+      <!-- Top K -->
+      <div class="panel">
+        <div class="panel-title">Results Count</div>
+        <div class="topk-row">
+          <button class="topk-btn" onclick="setTopK(3)">3</button>
+          <button class="topk-btn active" onclick="setTopK(5)">5</button>
+          <button class="topk-btn" onclick="setTopK(8)">8</button>
+          <button class="topk-btn" onclick="setTopK(10)">10</button>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="panel" style="font-family:var(--font-mono);font-size:10px;line-height:1.8;color:var(--text2);">
+        <div class="panel-title">Score Legend</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:20px;height:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;"></div>
+            <span>HYBRID (final rank)</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:20px;height:4px;background:var(--accent);border-radius:2px;"></div>
+            <span>VECTOR similarity</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:20px;height:4px;background:var(--accent3);border-radius:2px;"></div>
+            <span>BM25 keyword</span>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Search Box -->
+      <div class="search-box">
+        <div class="search-input-wrap">
+          <span class="search-icon">⌕</span>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Search products…"
+            onkeydown="if(event.key==='Enter') doSearch()"
+            autocomplete="off"
+          />
+          <button class="search-btn" id="searchBtn" onclick="doSearch()">SEARCH</button>
+        </div>
+        <div class="suggestions">
+          <span class="sug-label">TRY:</span>
+          <button class="sug-btn" onclick="useSuggestion('noise cancelling headphones')">noise cancelling headphones</button>
+          <button class="sug-btn" onclick="useSuggestion('wireless earbuds')">wireless earbuds</button>
+          <button class="sug-btn" onclick="useSuggestion('running shoes lightweight')">running shoes</button>
+          <button class="sug-btn" onclick="useSuggestion('coffee maker')">coffee maker</button>
+          <button class="sug-btn" onclick="useSuggestion('skin moisturizer')">skin care</button>
+          <button class="sug-btn" onclick="useSuggestion('fast charging power bank')">power bank</button>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div class="error-box" id="errorBox"></div>
+
+      <!-- AI Summary -->
+      <div class="ai-summary" id="aiSummary">
+        <div class="ai-icon">✦</div>
+        <div class="ai-text">
+          <span class="ai-badge">AI · LLaMA 3.1 via Groq</span>
+          <span id="aiText"></span>
+        </div>
+      </div>
+
+      <!-- Results Header -->
+      <div class="results-header" id="resultsHeader" style="display:none;">
+        <div class="results-count">
+          Found <span id="countSpan">0</span> results
+          <span id="filterBadge" style="display:none; margin-left:8px; padding:2px 10px; background:rgba(108,99,255,0.15); border:1px solid rgba(108,99,255,0.3); border-radius:12px; font-size:10px; color:var(--accent);">filtered</span>
+        </div>
+        <div class="sort-toggle">
+          <button class="sort-btn active" onclick="sortBy('hybrid')">HYBRID</button>
+          <button class="sort-btn" onclick="sortBy('vector')">VECTOR</button>
+          <button class="sort-btn" onclick="sortBy('bm25')">BM25</button>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div class="loading" id="loading">
+        <div class="loader-ring"></div>
+        <div class="loading-text">searching neural index…</div>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty" id="emptyState">
+        <div class="empty-icon">⬡</div>
+        <div class="empty-title">Neural index ready</div>
+        <div class="empty-sub">Enter a query to begin hybrid retrieval</div>
+      </div>
+
+      <!-- Results -->
+      <div class="results-list" id="resultsList"></div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:5000/api';
+  let currentTopK = 5;
+  let currentCat = '';
+  let currentAlpha = 0.50;
+  let allResults = [];
+  let currentSort = 'hybrid';
+
+  // ── Init ────────────────────────────────────────────
+  async function init() {
+    await checkHealth();
+    await loadStats();
+  }
+
+  async function checkHealth() {
+    try {
+      const r = await fetch(`${API.replace('/api', '')}/health`);
+      if (r.ok) {
+        document.getElementById('connDot').className = 'conn-dot online';
+        document.getElementById('connText').textContent = 'connected';
+      } else throw new Error();
+    } catch {
+      document.getElementById('connDot').className = 'conn-dot offline';
+      document.getElementById('connText').textContent = 'offline';
+    }
+  }
+
+  async function loadStats() {
+    try {
+      const r = await fetch(`${API}/stats`);
+      const d = await r.json();
+      document.getElementById('statDocs').textContent = d.total_documents;
+      document.getElementById('statCats').textContent = Object.keys(d.categories).length;
+      document.getElementById('countAll').textContent = d.total_documents;
+
+      const grid = document.getElementById('catGrid');
+      // Clear existing category buttons (keep "All")
+      const existing = grid.querySelectorAll('[data-cat]:not([data-cat=""])');
+      existing.forEach(e => e.remove());
+
+      for (const [cat, count] of Object.entries(d.categories).sort()) {
+        const btn = document.createElement('button');
+        btn.className = 'cat-btn';
+        btn.dataset.cat = cat;
+        btn.onclick = function() { selectCat(this); };
+        btn.innerHTML = `${cat} <span class="cat-count">${count}</span>`;
+        grid.appendChild(btn);
+      }
+    } catch(e) {
+      console.warn('Stats error:', e);
+    }
+  }
+
+  // ── Controls ─────────────────────────────────────────
+  function selectCat(btn) {
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCat = btn.dataset.cat;
+    document.getElementById('filterBadge').style.display = currentCat ? 'inline-block' : 'none';
+  }
+
+  function setTopK(n) {
+    currentTopK = n;
+    document.querySelectorAll('.topk-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+  }
+
+  function updateAlpha() {
+    const v = parseInt(document.getElementById('alphaSlider').value);
+    currentAlpha = v / 100;
+    document.getElementById('alphaVal').textContent = currentAlpha.toFixed(2);
+    const vecPct = v + '%';
+    const bm25Pct = (100 - v) + '%';
+    document.getElementById('blendVec').style.width = vecPct;
+    document.getElementById('blendVec').textContent = v >= 15 ? 'VEC' : '';
+    document.getElementById('blendBm25').textContent = (100-v) >= 15 ? 'BM25' : '';
+  }
+
+  function useSuggestion(text) {
+    document.getElementById('searchInput').value = text;
+    doSearch();
+  }
+
+  function sortBy(key) {
+    currentSort = key;
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    renderResults(allResults);
+  }
+
+  // ── Search ────────────────────────────────────────────
+  async function doSearch() {
+    const q = document.getElementById('searchInput').value.trim();
+    if (!q) return;
+
+    setLoading(true);
+    hideError();
+    document.getElementById('aiSummary').classList.remove('visible');
+    document.getElementById('resultsHeader').style.display = 'none';
+    document.getElementById('resultsList').innerHTML = '';
+    document.getElementById('emptyState').style.display = 'none';
+
+    const filters = {};
+    if (currentCat) filters.product_category = currentCat;
+
+    try {
+      const res = await fetch(`${API}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: q,
+          top_k: currentTopK,
+          filters,
+          alpha: currentAlpha
+        })
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      allResults = data.results || [];
+      setLoading(false);
+
+      if (data.ai_summary) {
+        document.getElementById('aiText').textContent = data.ai_summary;
+        document.getElementById('aiSummary').classList.add('visible');
+      }
+
+      document.getElementById('resultsHeader').style.display = 'flex';
+      document.getElementById('countSpan').textContent = allResults.length;
+      document.getElementById('filterBadge').style.display = currentCat ? 'inline-block' : 'none';
+
+      renderResults(allResults);
+
+    } catch(e) {
+      setLoading(false);
+      showError(`Connection failed: ${e.message}. Is the backend running on port 5000?`);
+    }
+  }
+
+  // ── Render ────────────────────────────────────────────
+  function renderResults(results) {
+    const list = document.getElementById('resultsList');
+    list.innerHTML = '';
+
+    const sorted = [...results].sort((a, b) => {
+      const key = currentSort === 'hybrid' ? 'hybrid_score' :
+                  currentSort === 'vector' ? 'vector_score' : 'bm25_score';
+      return b[key] - a[key];
+    });
+
+    if (!sorted.length) {
+      document.getElementById('emptyState').style.display = 'flex';
+      document.getElementById('emptyState').querySelector('.empty-title').textContent = 'No results found';
+      document.getElementById('emptyState').querySelector('.empty-sub').textContent = 'Try a different query or remove the category filter';
+      return;
+    }
+
+    sorted.forEach((r, i) => {
+      const card = document.createElement('div');
+      card.className = 'result-card';
+      card.style.animationDelay = `${i * 60}ms`;
+
+      const hybridPct = Math.round(r.hybrid_score * 100);
+      const vecPct = Math.round(r.vector_score * 100);
+      const bm25Pct = Math.round(r.bm25_score * 100);
+      const price = r.metadata.price ? `$${r.metadata.price.toFixed(2)}` : '';
+      const rating = r.metadata.rating ? `<span>★</span>${r.metadata.rating}` : '';
+
+      card.innerHTML = `
+        <div class="card-top">
+          <div class="card-meta">
+            <span class="tag tag-cat">${r.metadata.product_category || '?'}</span>
+            ${r.metadata.brand ? `<span class="tag tag-brand">${r.metadata.brand}</span>` : ''}
+          </div>
+          <span class="card-rank">#${i+1} · ${hybridPct}%</span>
+        </div>
+        <div class="card-text">${r.text}</div>
+        <div class="card-bottom">
+          <div class="score-bars">
+            <div class="score-item">
+              <span class="score-label">HYBRID</span>
+              <div class="score-track">
+                <div class="score-fill fill-hybrid" style="width:${hybridPct}%"></div>
+              </div>
+              <span class="score-num">${r.hybrid_score.toFixed(4)}</span>
+            </div>
+            <div class="score-item">
+              <span class="score-label">VECTOR</span>
+              <div class="score-track">
+                <div class="score-fill fill-vec" style="width:${vecPct}%"></div>
+              </div>
+              <span class="score-num">${r.vector_score.toFixed(4)}</span>
+            </div>
+            <div class="score-item">
+              <span class="score-label">BM25</span>
+              <div class="score-track">
+                <div class="score-fill fill-bm25" style="width:${bm25Pct}%"></div>
+              </div>
+              <span class="score-num">${r.bm25_score.toFixed(4)}</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;">
+            ${rating ? `<div class="rating-badge">${rating}</div>` : ''}
+            ${price ? `<div class="price-badge">${price}</div>` : ''}
+          </div>
+        </div>
+      `;
+
+      list.appendChild(card);
+    });
+  }
+
+  // ── Helpers ───────────────────────────────────────────
+  function setLoading(on) {
+    document.getElementById('loading').className = on ? 'loading visible' : 'loading';
+    document.getElementById('searchBtn').disabled = on;
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorBox');
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+
+  function hideError() {
+    document.getElementById('errorBox').classList.remove('visible');
+  }
+
+  // ── Start ─────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>

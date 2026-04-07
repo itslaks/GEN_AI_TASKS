@@ -1,87 +1,158 @@
-# Document Indexing with ChromaDB MVP Blueprint
+# 📄 PDF RAG — Semantic Search & Q&A over PDF Documents
 
-## 1. Use Case Definition
+> Index any PDF into ChromaDB, search it semantically, and ask questions answered by **Groq's free LLaMA 3.1 8B Instant** API — all 100% free.
 
-- **User uploads/selects a product manual PDF (≈100 pages).**
-- **System indexes it into ChromaDB and enables:**
-  - a) Keyword-like search (top chunks based on semantic similarity).
-  - b) Q&A ("Ask the manual") with citations (page numbers + chunk refs).
-- **Output must be grounded in retrieved chunks; never invent details.**
+---
 
-## 2. Minimal but Scalable Architecture (LangChain-Centric)
+## 🗂️ Project Structure
 
-- **Ingestion Chain:**
-  - PDF load (pypdf via LangChain PyPDFLoader) → clean text (remove headers/footers) → chunking (RecursiveCharacterTextSplitter) → embeddings (OpenAI) → ChromaDB upsert.
-- **Retrieval Chain:**
-  - Similarity search (top-k) + optional MMR (Maximal Marginal Relevance) for diversity.
-- **Answering Chain:**
-  - LLM (OpenAI GPT-3.5-turbo) uses retrieved chunks to answer with citations.
-- **Persistence:**
-  - ChromaDB persisted locally (disk) with collection per manual/version (e.g., collection name = manual_id).
+```
+.
+├── app.py              # Flask backend — PDF indexing, search, RAG Q&A
+├── index.html          # Frontend UI (dark theme, zero dependencies)
+├── requirements.txt    # Python dependencies
+├── .env.example        # Environment variable template
+└── README.md           # This file
+```
 
-## 3. Data Inputs and Processing Details
+---
 
-- **PDF Parsing:**
-  - Via pypdf (LangChain PyPDFLoader).
-  - Handle headers/footers: detect and remove common patterns (e.g., page numbers, company logos via regex).
-  - Page breaks: preserved in metadata as page_number.
-- **Chunking Strategy:**
-  - chunk_size=1000 characters, overlap=200 characters.
-  - Rationale: Balances context retention (overlap) with granularity for manual sections; 1000 chars ≈ 150-250 words, suitable for product manuals.
-- **Metadata per Chunk:**
-  - manual_id (e.g., hash of PDF), filename, page_number(s) (list if chunk spans pages), section_heading (extracted from text, e.g., first line if starts with capital), chunk_id (UUID).
-- **Deduplication and Re-index:**
-  - Hash PDF content (SHA256); store hash in collection metadata.
-  - On upload, check hash; if changed, delete old collection and re-index.
+## 🚀 Quick Start
 
-## 4. Models and Tools
+### 1. Clone / Download
 
-- **LangChain Integrations:**
-  - PyPDFLoader for PDF loading.
-  - Chroma for vector store.
-  - RecursiveCharacterTextSplitter for chunking.
-  - RetrievalQA or ConversationalRetrievalChain for Q&A.
-- **Embeddings Model:**
-  - HuggingFace sentence-transformers/all-MiniLM-L6-v2 (free, local; assumption: effective for general text).
-- **LLM Selection:**
-  - Ollama Mistral (free, local; assumption: good performance for Q&A; requires Ollama running locally).
-- **Offline Mode:**
-  - Search-only without LLM: return top chunks with snippets and page refs.
+```bash
+git clone <your-repo>
+cd pdf-rag
+```
 
-## 5. Simple Interface (FastAPI + HTML)
+### 2. Create a virtual environment
 
-- **UI Choice:** FastAPI with server-rendered HTML (Jinja2) for simple, custom dark theme.
-- **Theme:** Dark background with neon brown accents (glow effects on buttons/inputs).
-- **Required Features:**
-  - Upload/select PDF (multipart form).
-  - Button: "Index / Re-index" (triggers ingestion).
-  - Query input (text input) with toggle: "Search" vs "Ask" (select).
-  - Top-k selector (select: 3/5/8).
-  - Results panel:
-    - Answer (for Ask, with citations).
-    - Retrieved sources: page numbers + snippets.
-  - Error handling: unsupported PDF (check file type), indexing failures (redirect with error).
+```bash
+python -m venv venv
+source venv/bin/activate      # Linux / macOS
+venv\Scripts\activate         # Windows
+```
 
-## 6. MVP Feature Set
+### 3. Install dependencies
 
-- Single manual indexing + query first; optional support for multiple manuals via manual_id (future).
-- Local persistence for ChromaDB (persist_directory="./chroma_db").
-- No user accounts, no advanced analytics, no complex agent workflows.
+```bash
+pip install -r requirements.txt
+```
 
-## 7. Tech Stack and Deployment
+> ⚠️ First run downloads the `all-MiniLM-L6-v2` embedding model (~80 MB). Subsequent runs use the cached model.
 
-- **Core:** Python 3.10, LangChain, pypdf, chromadb, fastapi, uvicorn, jinja2, sentence-transformers, langchain-community, langchain-ollama.
-- **Deployment:** Local dev; run `python app.py` or `uvicorn app:app --reload`.
-- **Prerequisites:** Ollama installed and running with Mistral model (`ollama pull mistral`).
+### 4. Set up your Groq API key
 
-## 8. Workflow Diagram Explanation
+```bash
+cp .env.example .env
+```
 
-- **Indexing Workflow:**
-  - PDF upload → PyPDFLoader loads pages → Clean text (regex) → RecursiveCharacterTextSplitter chunks → OpenAI embeddings → ChromaDB.upsert (with metadata).
-- **Querying Workflow:**
-  - User query → OpenAI embed query → ChromaDB.similarity_search (top-k) → (if Ask: LLM with retrieved chunks) → Answer + citations.
+Edit `.env` and add your free Groq API key from [console.groq.com](https://console.groq.com).
 
-## Implementation Notes
+```env
+GROQ_API_KEY=your_groq_api_key_here
+```
 
-- **Assumptions:** OpenAI models used; API keys required. If no keys, offline mode only.
-- **Self-Check:** All requirements addressed; interface includes all features; MVP scope maintained.
+### 5. Start the backend
+
+```bash
+python app.py
+```
+
+The API runs at `http://localhost:5000`.
+
+### 6. Open the frontend
+
+Open `index.html` directly in your browser (double-click it or use Live Server).
+
+---
+
+## 🔌 API Reference
+
+| Method | Endpoint  | Description                                    |
+|--------|-----------|------------------------------------------------|
+| GET    | /health   | Health check + total indexed chunks            |
+| POST   | /upload   | Upload & index a PDF (multipart/form-data)     |
+| POST   | /search   | Semantic search — returns top-k chunks         |
+| POST   | /ask      | RAG Q&A — returns AI answer + source chunks    |
+| GET    | /stats    | Total chunks & list of indexed sources         |
+| DELETE | /clear    | Wipe the entire ChromaDB collection            |
+
+### POST /upload
+```bash
+curl -X POST http://localhost:5000/upload \
+  -F "file=@manual.pdf"
+```
+
+### POST /search
+```json
+{ "query": "How do I reset the device?", "top_k": 5 }
+```
+
+### POST /ask
+```json
+{ "query": "What are the safety precautions?", "top_k": 5 }
+```
+
+---
+
+## ⚙️ Architecture
+
+```
+PDF Upload
+    │
+    ▼
+pypdf → Page Text Extraction
+    │
+    ▼
+LangChain RecursiveCharacterTextSplitter
+(800 chars / 150 overlap)
+    │
+    ▼
+SentenceTransformer (all-MiniLM-L6-v2)  ← FREE, runs locally
+    │
+    ▼
+ChromaDB (persistent, cosine similarity)
+    │
+    ├─── /search → Top-K Chunks + Similarity Scores
+    │
+    └─── /ask → Groq LLaMA 3.1 8B → Natural Language Answer
+```
+
+---
+
+## 🔑 Free Resources Used
+
+| Component      | Tool                          | Cost    |
+|----------------|-------------------------------|---------|
+| PDF Parsing    | pypdf                         | Free    |
+| Text Chunking  | LangChain                     | Free    |
+| Embeddings     | all-MiniLM-L6-v2 (local)      | Free    |
+| Vector DB      | ChromaDB (local persistent)   | Free    |
+| LLM / Q&A      | Groq API (LLaMA 3.1 8B)       | Free*   |
+
+\* Groq free tier: 14,400 requests/day, 6,000 tokens/min
+
+---
+
+## 🛠️ Configuration
+
+All settings in `.env`:
+
+```env
+GROQ_API_KEY=...          # Required
+CHROMA_PERSIST_DIR=./chroma_db
+COLLECTION_NAME=pdf_manual
+UPLOAD_DIR=./uploads
+```
+
+---
+
+## 📝 Notes
+
+- Supports any text-based PDF (not scanned images without OCR)
+- ChromaDB data persists in `./chroma_db` between restarts
+- Uploaded PDFs are saved in `./uploads`
+- Chunk size: 800 chars (~200 tokens), overlap: 150 chars
+- Top-K defaults to 5 (configurable per request)

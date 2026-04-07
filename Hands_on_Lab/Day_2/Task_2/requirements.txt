@@ -1,0 +1,12 @@
+flask
+flask-cors
+python-dotenv
+langchain
+langchain-community
+langchain-huggingface
+langchain-text-splitters
+chromadb
+sentence-transformers
+groq
+pypdf
+langchain-chroma

@@ -1,10 +1,25 @@
-fastapi
-uvicorn
-jinja2
-langchain
-chromadb
+# PDF RAG — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Web framework
+flask
+flask-cors
+
+# PDF processing
 pypdf
+
+# Text chunking
+langchain
+langchain-text-splitters
+
+# Vector database (local, persistent)
+chromadb
+
+# Embeddings (free, runs locally via sentence-transformers)
 sentence-transformers
-langchain-community
-langchain-ollama
-python-multipart
+
+# LLM inference (free Groq API)
+groq
+
+# Environment variable management
+python-dotenv

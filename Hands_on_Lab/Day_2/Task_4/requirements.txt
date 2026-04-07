@@ -1,0 +1,16 @@
+flask
+flask-cors
+python-dotenv
+langchain
+langchain-community
+langchain-groq
+langchain-huggingface
+chromadb
+sentence-transformers
+pypdf
+groq
+torch
+torchvision
+torchaudio
+huggingface-hub
+tiktoken

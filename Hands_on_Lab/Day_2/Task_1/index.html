@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VectorMind — PDF Intelligence Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+/* ── Reset & Tokens ──────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #080b10;
+  --surface:   #0e1318;
+  --card:      #121820;
+  --border:    #1e2a36;
+  --border2:   #253040;
+  --accent:    #00e5ff;
+  --accent2:   #7b2fff;
+  --accent3:   #ff3cac;
+  --gold:      #ffd166;
+  --text:      #d4dde8;
+  --muted:     #5a6a7a;
+  --success:   #00e676;
+  --warn:      #ff9100;
+  --error:     #ff4444;
+  --r:         10px;
+  --r2:        16px;
+  --font-ui:   'Syne', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --glow:      0 0 30px rgba(0,229,255,0.12);
+  --glow2:     0 0 60px rgba(123,47,255,0.15);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ── Noise Texture Overlay ──────────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
+}
+
+/* ── Grid Background ────────────────────────────────────────────────────── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none; z-index: 0;
+}
+
+/* ── Orb Glows ──────────────────────────────────────────────────────────── */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  animation: drift 12s ease-in-out infinite alternate;
+}
+.orb-1 { width: 500px; height: 500px; top: -150px; left: -100px; background: rgba(0,229,255,0.06); }
+.orb-2 { width: 400px; height: 400px; bottom: -100px; right: -100px; background: rgba(123,47,255,0.08); animation-delay: -4s; }
+.orb-3 { width: 300px; height: 300px; top: 40%; left: 60%; background: rgba(255,60,172,0.05); animation-delay: -8s; }
+
+@keyframes drift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(30px, -30px) scale(1.05); }
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+#root { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 0 24px 80px; }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 0 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+.logo {
+  display: flex; align-items: center; gap: 14px;
+}
+.logo-icon {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 20px rgba(0,229,255,0.3), 0 0 40px rgba(123,47,255,0.2);
+  animation: pulse-icon 3s ease-in-out infinite;
+}
+@keyframes pulse-icon {
+  0%, 100% { box-shadow: 0 0 20px rgba(0,229,255,0.3), 0 0 40px rgba(123,47,255,0.2); }
+  50%       { box-shadow: 0 0 30px rgba(0,229,255,0.5), 0 0 60px rgba(123,47,255,0.35); }
+}
+.logo-text h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #fff; }
+.logo-text span { font-size: 11px; font-family: var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+
+.status-bar {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted);
+  transition: all 0.4s;
+}
+.status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); animation: blink 2s ease-in-out infinite; }
+.status-dot.error  { background: var(--error); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+#status-text { transition: color 0.3s; }
+
+/* ── Main Grid ───────────────────────────────────────────────────────────── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 24px;
+  transition: border-color 0.3s;
+}
+.card:hover { border-color: var(--border2); }
+.card-title {
+  font-size: 11px; font-family: var(--font-mono);
+  text-transform: uppercase; letter-spacing: 2px;
+  color: var(--muted); margin-bottom: 18px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title::before { content: '//'; color: var(--accent); }
+
+/* ── Upload Zone ─────────────────────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--border2);
+  border-radius: var(--r);
+  padding: 36px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: transparent;
+  position: relative;
+  overflow: hidden;
+}
+.upload-zone::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(0,229,255,0.03), rgba(123,47,255,0.03));
+  opacity: 0; transition: opacity 0.3s;
+}
+.upload-zone:hover::before, .upload-zone.drag-over::before { opacity: 1; }
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+}
+.upload-icon { font-size: 36px; margin-bottom: 12px; display: block; }
+.upload-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+.upload-sub { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+#file-input { display: none; }
+
+/* ── Progress ────────────────────────────────────────────────────────────── */
+.progress-wrap { margin-top: 16px; display: none; }
+.progress-wrap.show { display: block; }
+.progress-label { font-size: 11px; font-family: var(--font-mono); color: var(--muted); margin-bottom: 6px; }
+.progress-bar {
+  height: 3px; background: var(--border);
+  border-radius: 2px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  width: 0%; transition: width 0.4s;
+  box-shadow: 0 0 10px var(--accent);
+}
+.progress-fill.indeterminate {
+  width: 40%; animation: slide 1.4s ease-in-out infinite;
+}
+@keyframes slide { 0%{transform:translateX(-100%)} 100%{transform:translateX(350%)} }
+
+/* ── Stats Grid ──────────────────────────────────────────────────────────── */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.stat-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px;
+}
+.stat-val { font-size: 26px; font-weight: 800; color: var(--accent); font-family: var(--font-mono); }
+.stat-key { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+/* ── Sources List ────────────────────────────────────────────────────────── */
+.sources-list { margin-top: 20px; }
+.source-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  margin-bottom: 8px; font-size: 12px; color: var(--text);
+  font-family: var(--font-mono);
+  animation: fadeIn 0.4s ease;
+}
+.source-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-icon { color: var(--accent3); flex-shrink: 0; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+
+/* ── Right Panel ─────────────────────────────────────────────────────────── */
+.right-panel { display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex; gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 4px;
+}
+.tab-btn {
+  flex: 1; padding: 10px 16px;
+  border: none; background: transparent;
+  border-radius: 9px; cursor: pointer;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+  color: var(--muted); transition: all 0.25s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.tab-btn.active {
+  background: linear-gradient(135deg, rgba(0,229,255,0.15), rgba(123,47,255,0.15));
+  color: #fff;
+  border: 1px solid rgba(0,229,255,0.2);
+  box-shadow: 0 0 20px rgba(0,229,255,0.08);
+}
+.tab-btn:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.04); }
+
+/* ── Query Box ───────────────────────────────────────────────────────────── */
+.query-area {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 20px;
+}
+.query-row { display: flex; gap: 10px; }
+.query-input {
+  flex: 1; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r);
+  color: var(--text); font-family: var(--font-ui); font-size: 14px;
+  padding: 12px 16px; outline: none; transition: border-color 0.3s, box-shadow 0.3s;
+  resize: none; min-height: 52px; max-height: 120px;
+}
+.query-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,255,0.08); }
+.query-input::placeholder { color: var(--muted); }
+
+.btn {
+  border: none; cursor: pointer; border-radius: var(--r);
+  font-family: var(--font-ui); font-weight: 600; font-size: 13px;
+  transition: all 0.25s; display: flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; padding: 12px 20px;
+  box-shadow: 0 0 20px rgba(0,229,255,0.2);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(0,229,255,0.35); }
+.btn-primary:active { transform: none; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-ghost {
+  background: transparent; color: var(--muted); padding: 8px 12px;
+  border: 1px solid var(--border); font-size: 12px;
+}
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+.btn-danger {
+  background: transparent; color: var(--error); padding: 8px 12px;
+  border: 1px solid rgba(255,68,68,0.3); font-size: 12px;
+}
+.btn-danger:hover { background: rgba(255,68,68,0.08); }
+
+.query-opts { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.opt-label { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+.top-k-input {
+  width: 60px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); padding: 6px 10px;
+  font-family: var(--font-mono); font-size: 12px; text-align: center; outline: none;
+}
+
+/* ── Results ─────────────────────────────────────────────────────────────── */
+.results-area { display: flex; flex-direction: column; gap: 16px; }
+
+.result-placeholder {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 60px 40px; text-align: center;
+  color: var(--muted); font-family: var(--font-mono); font-size: 13px;
+}
+.result-placeholder .big-icon { font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.4; }
+
+/* ── Answer Card ─────────────────────────────────────────────────────────── */
+.answer-card {
+  background: var(--card); border: 1px solid rgba(0,229,255,0.2);
+  border-radius: var(--r2); padding: 24px;
+  box-shadow: 0 0 30px rgba(0,229,255,0.06);
+  animation: slideUp 0.4s ease;
+}
+@keyframes slideUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+.answer-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+  font-size: 11px; font-family: var(--font-mono); color: var(--accent);
+  text-transform: uppercase; letter-spacing: 2px;
+}
+.answer-text {
+  font-size: 14px; line-height: 1.75; color: var(--text);
+  white-space: pre-wrap;
+}
+.answer-model {
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);
+  font-size: 11px; font-family: var(--font-mono); color: var(--muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.model-tag {
+  background: rgba(123,47,255,0.15); border: 1px solid rgba(123,47,255,0.3);
+  color: #b98aff; padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-family: var(--font-mono);
+}
+
+/* ── Chunk Cards ─────────────────────────────────────────────────────────── */
+.chunks-header {
+  font-size: 11px; font-family: var(--font-mono);
+  color: var(--muted); text-transform: uppercase; letter-spacing: 2px;
+  margin-top: 4px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+.chunks-header::before { content: '//'; color: var(--accent2); }
+
+.chunk-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px;
+  animation: slideUp 0.4s ease both;
+  transition: border-color 0.3s;
+}
+.chunk-card:hover { border-color: var(--border2); }
+.chunk-card:nth-child(1) { animation-delay: 0.05s; }
+.chunk-card:nth-child(2) { animation-delay: 0.10s; }
+.chunk-card:nth-child(3) { animation-delay: 0.15s; }
+.chunk-card:nth-child(4) { animation-delay: 0.20s; }
+.chunk-card:nth-child(5) { animation-delay: 0.25s; }
+
+.chunk-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; flex-wrap: wrap; gap: 8px;
+}
+.chunk-badge {
+  font-size: 10px; font-family: var(--font-mono);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 8px; color: var(--muted);
+}
+.sim-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.sim-val { font-size: 11px; font-family: var(--font-mono); font-weight: 700; }
+.sim-bar {
+  width: 80px; height: 3px; background: var(--border);
+  border-radius: 2px; overflow: hidden;
+}
+.sim-fill { height: 100%; border-radius: 2px; }
+.chunk-text {
+  font-size: 13px; line-height: 1.65; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical;
+  overflow: hidden; cursor: pointer;
+}
+.chunk-text.expanded { -webkit-line-clamp: unset; line-clamp: unset; }
+.expand-btn {
+  font-size: 10px; font-family: var(--font-mono); color: var(--accent);
+  background: none; border: none; cursor: pointer; margin-top: 6px;
+  padding: 0;
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+.toast-area { position: fixed; bottom: 24px; right: 24px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 18px;
+  font-size: 13px; color: var(--text);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  display: flex; align-items: center; gap: 10px;
+  animation: toastIn 0.3s ease;
+  max-width: 320px;
+}
+@keyframes toastIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:none} }
+.toast.success { border-color: rgba(0,230,118,0.3); }
+.toast.error   { border-color: rgba(255,68,68,0.3); }
+.toast.info    { border-color: rgba(0,229,255,0.3); }
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+.spin {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.3);
+  border-top-color: #000;
+  animation: spin 0.7s linear infinite;
+  display: inline-block; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── Section hidden util ─────────────────────────────────────────────────── */
+.tab-content { display: none; }
+.tab-content.active { display: flex; flex-direction: column; gap: 16px; }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div id="root">
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⬡</div>
+      <div class="logo-text">
+        <h1>VectorMind</h1>
+        <span>PDF Intelligence Engine</span>
+      </div>
+    </div>
+    <div class="status-bar">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Connecting…</span>
+      <span style="color:var(--border2)">|</span>
+      <span id="header-chunks" style="color:var(--accent);font-weight:700">— chunks</span>
+    </div>
+  </header>
+
+  <!-- Main Grid -->
+  <div class="main-grid">
+
+    <!-- ── Left: Upload + Stats ── -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+
+      <!-- Upload Card -->
+      <div class="card">
+        <div class="card-title">Document Indexer</div>
+
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="file-input" accept=".pdf" />
+          <span class="upload-icon">📄</span>
+          <div class="upload-title">Drop PDF here</div>
+          <div class="upload-sub">or click to browse</div>
+        </div>
+
+        <div class="progress-wrap" id="progress-wrap">
+          <div class="progress-label" id="progress-label">Uploading…</div>
+          <div class="progress-bar"><div class="progress-fill indeterminate" id="progress-fill"></div></div>
+        </div>
+      </div>
+
+      <!-- Stats Card -->
+      <div class="card">
+        <div class="card-title">Index Stats</div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-val" id="stat-chunks">—</div>
+            <div class="stat-key">Total Chunks</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" id="stat-sources">—</div>
+            <div class="stat-key">Documents</div>
+          </div>
+        </div>
+
+        <div class="sources-list" id="sources-list"></div>
+
+        <div style="margin-top:16px;display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="loadStats()" style="flex:1">↻ Refresh</button>
+          <button class="btn btn-danger" onclick="clearIndex()" style="flex:1">✕ Clear Index</button>
+        </div>
+      </div>
+
+      <!-- API Config Card -->
+      <div class="card">
+        <div class="card-title">Backend URL</div>
+        <div style="display:flex;gap:8px;">
+          <input id="api-url" type="text" value="http://localhost:5000"
+            style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--font-mono);font-size:12px;outline:none;" />
+          <button class="btn btn-ghost" onclick="checkHealth()">Test</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Right: Query Panel ── -->
+    <div class="right-panel">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('ask', this)">🤖 Ask AI</button>
+        <button class="tab-btn" onclick="switchTab('search', this)">🔍 Semantic Search</button>
+      </div>
+
+      <!-- Query Box (shared) -->
+      <div class="query-area">
+        <div class="query-row">
+          <textarea class="query-input" id="query-input"
+            placeholder="Ask a question about your document…"
+            rows="2"
+            onkeydown="handleKey(event)"></textarea>
+          <button class="btn btn-primary" id="run-btn" onclick="runQuery()">
+            <span id="btn-text">Run</span>
+            <span id="btn-icon">⚡</span>
+          </button>
+        </div>
+        <div class="query-opts">
+          <span class="opt-label">Top-K:</span>
+          <input type="number" class="top-k-input" id="top-k" value="5" min="1" max="20" />
+          <span class="opt-label" style="margin-left:auto;color:var(--border2)">Enter to submit</span>
+        </div>
+      </div>
+
+      <!-- Ask Tab -->
+      <div class="tab-content active" id="tab-ask">
+        <div class="results-area" id="ask-results">
+          <div class="result-placeholder">
+            <span class="big-icon">🧠</span>
+            Upload a PDF and ask a question.<br/>
+            LLaMA 3.1 8B will answer using your document.
+          </div>
+        </div>
+      </div>
+
+      <!-- Search Tab -->
+      <div class="tab-content" id="tab-search">
+        <div class="results-area" id="search-results">
+          <div class="result-placeholder">
+            <span class="big-icon">🔎</span>
+            Search returns the most semantically<br/>
+            similar chunks with similarity scores.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toast-area" id="toast-area"></div>
+
+<script>
+/* ── State ──────────────────────────────────────────────────────────────── */
+let activeTab = 'ask';
+
+function apiBase() { return document.getElementById('api-url').value.replace(/\/$/, ''); }
+
+/* ── Utility ─────────────────────────────────────────────────────────────── */
+function toast(msg, type = 'info') {
+  const area = document.getElementById('toast-area');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icons = { success: '✓', error: '✕', info: 'ℹ' };
+  el.innerHTML = `<span style="color:${type==='success'?'var(--success)':type==='error'?'var(--error)':'var(--accent)'}">${icons[type]}</span> ${msg}`;
+  area.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function simColor(s) {
+  if (s >= 0.85) return 'var(--success)';
+  if (s >= 0.65) return 'var(--accent)';
+  if (s >= 0.45) return 'var(--gold)';
+  return 'var(--warn)';
+}
+
+function setLoading(loading) {
+  const btn = document.getElementById('run-btn');
+  const txt = document.getElementById('btn-text');
+  const ico = document.getElementById('btn-icon');
+  btn.disabled = loading;
+  if (loading) {
+    txt.textContent = 'Running';
+    ico.innerHTML = '<span class="spin" style="border-top-color:#000"></span>';
+  } else {
+    txt.textContent = 'Run';
+    ico.textContent = '⚡';
+  }
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runQuery(); }
+}
+
+/* ── Tab Switching ───────────────────────────────────────────────────────── */
+function switchTab(tab, btn) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+
+  const ph = tab === 'ask'
+    ? `<div class="result-placeholder"><span class="big-icon">🧠</span>Upload a PDF and ask a question.<br/>LLaMA 3.1 8B will answer using your document.</div>`
+    : `<div class="result-placeholder"><span class="big-icon">🔎</span>Search returns the most semantically<br/>similar chunks with similarity scores.</div>`;
+
+  const el = document.getElementById(tab + '-results');
+  if (el.querySelector('.result-placeholder')) el.innerHTML = ph;
+  document.getElementById('query-input').placeholder =
+    tab === 'ask' ? 'Ask a question about your document…' : 'Enter a semantic search query…';
+}
+
+/* ── Health Check ────────────────────────────────────────────────────────── */
+async function checkHealth() {
+  const dot  = document.getElementById('status-dot');
+  const txt  = document.getElementById('status-text');
+  const hdr  = document.getElementById('header-chunks');
+  try {
+    const r = await fetch(apiBase() + '/health');
+    const d = await r.json();
+    dot.className = 'status-dot online';
+    txt.textContent = 'API Online';
+    hdr.textContent = d.indexed_chunks + ' chunks';
+    toast('Backend connected ✓', 'success');
+  } catch {
+    dot.className = 'status-dot error';
+    txt.textContent = 'Offline';
+    hdr.textContent = '— chunks';
+    toast('Cannot reach backend. Is app.py running?', 'error');
+  }
+}
+
+/* ── Load Stats ──────────────────────────────────────────────────────────── */
+async function loadStats() {
+  try {
+    const r = await fetch(apiBase() + '/stats');
+    const d = await r.json();
+    document.getElementById('stat-chunks').textContent  = d.total_chunks ?? '—';
+    document.getElementById('stat-sources').textContent = (d.sources ?? []).length;
+    document.getElementById('header-chunks').textContent = (d.total_chunks ?? '—') + ' chunks';
+
+    const list = document.getElementById('sources-list');
+    list.innerHTML = '';
+    (d.sources || []).forEach(s => {
+      const el = document.createElement('div');
+      el.className = 'source-item';
+      el.innerHTML = `<span class="source-icon">📄</span><span title="${s}">${s}</span>`;
+      list.appendChild(el);
+    });
+  } catch { /* silent */ }
+}
+
+/* ── Upload PDF ──────────────────────────────────────────────────────────── */
+async function uploadFile(file) {
+  if (!file || !file.name.endsWith('.pdf')) { toast('Please select a PDF file.', 'error'); return; }
+
+  const pw    = document.getElementById('progress-wrap');
+  const pl    = document.getElementById('progress-label');
+  const pf    = document.getElementById('progress-fill');
+  pw.classList.add('show');
+  pf.className = 'progress-fill indeterminate';
+  pl.textContent = `Uploading "${file.name}"…`;
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const r = await fetch(apiBase() + '/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Upload failed');
+
+    pf.className = 'progress-fill';
+    pf.style.width = '100%';
+    pl.textContent = `✓ ${d.chunks_indexed} chunks indexed from ${d.pages_parsed} pages`;
+    toast(`"${file.name}" indexed — ${d.chunks_indexed} chunks`, 'success');
+    await loadStats();
+    await checkHealth();
+  } catch (e) {
+    pl.textContent = '✕ ' + e.message;
+    toast(e.message, 'error');
+  } finally {
+    setTimeout(() => { pw.classList.remove('show'); pf.style.width = '0%'; }, 4000);
+  }
+}
+
+/* ── Upload Zone wiring ──────────────────────────────────────────────────── */
+const zone = document.getElementById('upload-zone');
+const fi   = document.getElementById('file-input');
+
+zone.addEventListener('click', () => fi.click());
+fi.addEventListener('change', e => { if (e.target.files[0]) uploadFile(e.target.files[0]); });
+
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) uploadFile(f);
+});
+
+/* ── Run Query ───────────────────────────────────────────────────────────── */
+async function runQuery() {
+  const q    = document.getElementById('query-input').value.trim();
+  const topK = parseInt(document.getElementById('top-k').value) || 5;
+  if (!q) { toast('Please enter a query.', 'error'); return; }
+
+  setLoading(true);
+  const isAsk = activeTab === 'ask';
+  const endpoint = isAsk ? '/ask' : '/search';
+  const resultsEl = document.getElementById(activeTab + '-results');
+
+  try {
+    const r = await fetch(apiBase() + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q, top_k: topK }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Request failed');
+
+    if (isAsk) {
+      renderAskResult(d, resultsEl);
+    } else {
+      renderSearchResults(d.results, resultsEl);
+    }
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ── Render Ask ──────────────────────────────────────────────────────────── */
+function renderAskResult(d, container) {
+  const sources = d.sources || [];
+  let html = `
+    <div class="answer-card">
+      <div class="answer-header">⬡ AI Answer</div>
+      <div class="answer-text">${escHtml(d.answer)}</div>
+      <div class="answer-model">
+        <span>Powered by</span>
+        <span class="model-tag">llama-3.1-8b-instant</span>
+        <span style="margin-left:auto">${sources.length} source chunks</span>
+      </div>
+    </div>
+  `;
+  if (sources.length) {
+    html += `<div class="chunks-header">Source Chunks</div>`;
+    html += sources.map((h, i) => chunkCardHtml(h, i)).join('');
+  }
+  container.innerHTML = html;
+}
+
+/* ── Render Search ───────────────────────────────────────────────────────── */
+function renderSearchResults(hits, container) {
+  if (!hits || hits.length === 0) {
+    container.innerHTML = `<div class="result-placeholder"><span class="big-icon">🔎</span>No results found.</div>`;
+    return;
+  }
+  container.innerHTML = `<div class="chunks-header">${hits.length} Results</div>` +
+    hits.map((h, i) => chunkCardHtml(h, i)).join('');
+}
+
+/* ── Chunk Card HTML ─────────────────────────────────────────────────────── */
+function chunkCardHtml(h, i) {
+  const sim   = h.similarity;
+  const pct   = Math.round(sim * 100);
+  const color = simColor(sim);
+  const cid   = 'chunk-' + i;
+  return `
+    <div class="chunk-card">
+      <div class="chunk-meta">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <span class="chunk-badge">📄 Page ${h.metadata?.page_num ?? '?'}</span>
+          <span class="chunk-badge">🆔 ${h.metadata?.chunk_id ?? '?'}</span>
+          <span class="chunk-badge" title="${h.metadata?.source}">${(h.metadata?.source ?? '').slice(0,20)}</span>
+        </div>
+        <div class="sim-bar-wrap">
+          <span class="sim-val" style="color:${color}">${pct}%</span>
+          <div class="sim-bar">
+            <div class="sim-fill" style="width:${pct}%;background:${color};box-shadow:0 0 6px ${color};"></div>
+          </div>
+        </div>
+      </div>
+      <div class="chunk-text" id="${cid}">${escHtml(h.text)}</div>
+      <button class="expand-btn" onclick="toggleChunk('${cid}', this)">+ Expand</button>
+    </div>
+  `;
+}
+
+function toggleChunk(id, btn) {
+  const el = document.getElementById(id);
+  el.classList.toggle('expanded');
+  btn.textContent = el.classList.contains('expanded') ? '− Collapse' : '+ Expand';
+}
+
+/* ── Clear Index ─────────────────────────────────────────────────────────── */
+async function clearIndex() {
+  if (!confirm('This will delete all indexed chunks. Continue?')) return;
+  try {
+    const r = await fetch(apiBase() + '/clear', { method: 'DELETE' });
+    const d = await r.json();
+    toast(d.message, 'success');
+    await loadStats();
+    await checkHealth();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ── Escape HTML ─────────────────────────────────────────────────────────── */
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Init ────────────────────────────────────────────────────────────────── */
+(async () => {
+  await checkHealth();
+  await loadStats();
+})();
+</script>
+</body>
+</html>
