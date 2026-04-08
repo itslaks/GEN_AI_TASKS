@@ -12,6 +12,7 @@ import requests
 from datetime import datetime, timezone
 from typing import Optional, TypedDict
 from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 from dotenv import load_dotenv
 
 from langgraph.graph import StateGraph, START, END
@@ -247,6 +248,7 @@ graph = builder.compile(checkpointer=checkpointer, interrupt_before=["human_revi
 # Flask API Routes
 # ─────────────────────────────────────────────
 app = Flask(__name__, static_folder=".", static_url_path="")
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 
 @app.route("/")
@@ -410,10 +412,14 @@ def get_stats():
 
 
 if __name__ == "__main__":
+    port = int(os.getenv("FLASK_PORT", "5001"))
+    debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
     print("=" * 60)
     print("  Content Moderation HITL System (LangGraph Native)")
     print(f"  Thresholds: auto-approve < {LOW_THRESHOLD} | auto-deny >= {HIGH_THRESHOLD}")
-    print(f"  Groq key: {'SET' if os.getenv('GROQ_API_KEY') else 'NOT SET (rule-based only)'}")
-    print("  UI: http://localhost:5000")
+    print(f"  Groq key : {'SET' if os.getenv('GROQ_API_KEY') else 'NOT SET (rule-based only)'}")
+    print(f"  Port     : {port}")
+    print(f"  Debug    : {debug}")
+    print(f"  UI       : http://localhost:{port}")
     print("=" * 60)
-    app.run(debug=True, port=5000)
+    app.run(debug=debug, port=port, host="0.0.0.0")

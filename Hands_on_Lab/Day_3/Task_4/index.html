@@ -1,1039 +1,974 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Research Pipeline — Multi-Agent AI</title>
-  <meta name="description" content="Production-grade multi-agent AI research pipeline powered by LangGraph, Groq, and ChromaDB. Generate deep research reports in seconds." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <style>
-    /* ────────────────────────────────────────────────────────────────
-       Design tokens
-    ──────────────────────────────────────────────────────────────── */
-    :root {
-      --bg:           #050810;
-      --bg2:          #0c1020;
-      --bg3:          #111828;
-      --glass:        rgba(255,255,255,0.04);
-      --glass-border: rgba(255,255,255,0.08);
-      --neon-blue:    #3b82f6;
-      --neon-cyan:    #06b6d4;
-      --neon-purple:  #8b5cf6;
-      --neon-green:   #10b981;
-      --neon-amber:   #f59e0b;
-      --neon-red:     #ef4444;
-      --text:         #e2e8f0;
-      --text-dim:     #64748b;
-      --text-muted:   #334155;
-      --radius:       14px;
-      --agent-r:      var(--neon-cyan);
-      --agent-w:      var(--neon-purple);
-      --agent-e:      var(--neon-green);
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent Research Pipeline | AI-Powered Reports</title>
+    <meta name="description" content="Generate comprehensive research reports using a 3-agent AI pipeline powered by LangGraph, Groq, and ChromaDB.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* ═══════════════════════════════════════════════════════════════
+           DESIGN SYSTEM
+           ═══════════════════════════════════════════════════════════════ */
+        :root {
+            --c-bg:         #06060e;
+            --c-surface-1:  #0d0d1a;
+            --c-surface-2:  #151528;
+            --c-surface-3:  #1e1e38;
+            --c-border:     rgba(255,255,255,.06);
+            --c-border-hi:  rgba(255,255,255,.12);
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+            --c-text:       #e8e8f0;
+            --c-text-2:     #9898b0;
+            --c-text-3:     #5c5c78;
 
-    html { scroll-behavior: smooth; }
+            --c-accent:     #6c5ce7;
+            --c-accent-2:   #a29bfe;
+            --c-cyan:       #00cec9;
+            --c-cyan-dim:   rgba(0,206,201,.15);
+            --c-green:      #00b894;
+            --c-green-dim:  rgba(0,184,148,.12);
+            --c-pink:       #fd79a8;
+            --c-pink-dim:   rgba(253,121,168,.12);
+            --c-orange:     #fdcb6e;
+            --c-red:        #ff7675;
+            --c-red-dim:    rgba(255,118,117,.12);
 
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
+            --glass:        rgba(13,13,26,.72);
+            --glass-blur:   16px;
 
-    /* ── Animated grid background ───────────────────────────────── */
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background-image:
-        linear-gradient(rgba(59,130,246,.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(59,130,246,.04) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-      z-index: 0;
-    }
+            --radius-sm:    8px;
+            --radius-md:    14px;
+            --radius-lg:    20px;
+            --radius-xl:    28px;
 
-    /* ── Glow orbs ──────────────────────────────────────────────── */
-    .orb {
-      position: fixed;
-      border-radius: 50%;
-      filter: blur(120px);
-      pointer-events: none;
-      z-index: 0;
-    }
-    .orb-1 { width: 600px; height: 600px; top: -200px; left: -200px;
-              background: rgba(59,130,246,.12); }
-    .orb-2 { width: 500px; height: 500px; bottom: -150px; right: -150px;
-              background: rgba(139,92,246,.10); }
-    .orb-3 { width: 350px; height: 350px; top: 40%; left: 55%;
-              background: rgba(6,182,212,.07); }
+            --shadow-card:  0 4px 24px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.2);
+            --shadow-glow:  0 0 40px rgba(108,92,231,.18);
 
-    /* ── Layout ─────────────────────────────────────────────────── */
-    .app-wrap {
-      position: relative;
-      z-index: 1;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 1.5rem 4rem;
-    }
+            --font-sans:    'Inter', -apple-system, sans-serif;
+            --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
 
-    /* ── Header ─────────────────────────────────────────────────── */
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 2rem 0 2.5rem;
-      border-bottom: 1px solid var(--glass-border);
-    }
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: .75rem;
-    }
-    .logo-icon {
-      width: 44px; height: 44px;
-      background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.25rem;
-      box-shadow: 0 0 20px rgba(59,130,246,.4);
-    }
-    .logo-text { font-size: 1.25rem; font-weight: 700; letter-spacing: -.02em; }
-    .logo-text span { color: var(--neon-blue); }
+            --transition:   .25s cubic-bezier(.4,0,.2,1);
+        }
 
-    .header-badge {
-      display: flex; align-items: center; gap: .5rem;
-      padding: .4rem .9rem;
-      background: var(--glass);
-      border: 1px solid var(--glass-border);
-      border-radius: 100px;
-      font-size: .75rem; font-weight: 500; color: var(--text-dim);
-    }
-    .badge-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--neon-green);
-      animation: pulse-dot 2s infinite;
-    }
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: .4; transform: scale(.7); }
-    }
+        /* ── Reset ───────────────────────────────────────────────────── */
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
-    /* ── Main grid ──────────────────────────────────────────────── */
-    .main-grid {
-      display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 1.5rem;
-      margin-top: 2rem;
-    }
-    @media (max-width: 900px) {
-      .main-grid { grid-template-columns: 1fr; }
-    }
+        html { scroll-behavior: smooth; }
 
-    /* ── Glass card ─────────────────────────────────────────────── */
-    .card {
-      background: var(--glass);
-      border: 1px solid var(--glass-border);
-      border-radius: var(--radius);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      padding: 1.5rem;
-    }
-    .card-title {
-      font-size: .7rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: .12em; color: var(--text-dim);
-      margin-bottom: 1.25rem;
-    }
+        body {
+            font-family: var(--font-sans);
+            background: var(--c-bg);
+            color: var(--c-text);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
 
-    /* ── Input section ──────────────────────────────────────────── */
-    .query-section { margin-bottom: 1.5rem; }
+        /* ── Animated background ─────────────────────────────────────── */
+        .bg-grid {
+            position: fixed; inset:0; z-index:0; pointer-events:none;
+            background-image:
+                linear-gradient(rgba(108,92,231,.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(108,92,231,.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+        .bg-orb {
+            position: fixed; border-radius:50%; filter:blur(100px);
+            pointer-events:none; z-index:0; opacity:.5;
+            animation: orbFloat 20s ease-in-out infinite alternate;
+        }
+        .bg-orb--1 { width:500px; height:500px; top:-120px; left:-100px; background:rgba(108,92,231,.18); }
+        .bg-orb--2 { width:400px; height:400px; bottom:-80px; right:-60px; background:rgba(0,206,201,.12); animation-delay:-8s; }
+        .bg-orb--3 { width:300px; height:300px; top:40%; left:50%; background:rgba(253,121,168,.08); animation-delay:-14s; }
 
-    .input-label {
-      display: block;
-      font-size: .8rem; font-weight: 500; color: var(--text-dim);
-      margin-bottom: .5rem;
-    }
-    .input-row { display: flex; gap: .75rem; margin-bottom: .75rem; }
-    .input-row .field { flex: 1; }
+        @keyframes orbFloat {
+            0%   { transform: translate(0,0) scale(1); }
+            50%  { transform: translate(30px,-40px) scale(1.15); }
+            100% { transform: translate(-20px,30px) scale(.95); }
+        }
 
-    input[type="text"], textarea, select {
-      width: 100%;
-      background: rgba(255,255,255,.04);
-      border: 1px solid var(--glass-border);
-      border-radius: 8px;
-      padding: .7rem 1rem;
-      color: var(--text);
-      font-family: inherit;
-      font-size: .9rem;
-      outline: none;
-      transition: border-color .2s, box-shadow .2s;
-    }
-    input[type="text"]:focus,
-    textarea:focus,
-    select:focus {
-      border-color: var(--neon-blue);
-      box-shadow: 0 0 0 3px rgba(59,130,246,.15);
-    }
-    select option { background: var(--bg2); }
+        /* ── Layout ──────────────────────────────────────────────────── */
+        .app { position:relative; z-index:1; max-width:1320px; margin:0 auto; padding:1.5rem; }
 
-    #query-input {
-      width: 100%;
-      min-height: 90px;
-      resize: vertical;
-      line-height: 1.5;
-    }
+        /* ── Header ──────────────────────────────────────────────────── */
+        .header {
+            text-align:center; padding:2.5rem 2rem 2rem;
+            margin-bottom:2rem;
+            background: linear-gradient(135deg, var(--glass), rgba(108,92,231,.08));
+            backdrop-filter: blur(var(--glass-blur));
+            border-radius: var(--radius-xl);
+            border:1px solid var(--c-border);
+            box-shadow: var(--shadow-card);
+            position:relative; overflow:hidden;
+        }
+        .header::before {
+            content:''; position:absolute; top:0; left:0; right:0; height:1px;
+            background: linear-gradient(90deg, transparent, var(--c-accent), var(--c-cyan), transparent);
+        }
+        .header__badge {
+            display:inline-flex; align-items:center; gap:.5rem;
+            padding:.35rem .9rem; border-radius:100px;
+            background: var(--c-cyan-dim); color:var(--c-cyan);
+            font-size:.75rem; font-weight:600; letter-spacing:.04em;
+            text-transform:uppercase; margin-bottom:1rem;
+        }
+        .header__badge .dot { width:6px; height:6px; border-radius:50%; background:var(--c-cyan); animation: blink 2s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-    .char-counter {
-      text-align: right;
-      font-size: .72rem;
-      color: var(--text-dim);
-      margin-top: .25rem;
-      transition: color .2s;
-    }
-    .char-counter.warn { color: var(--neon-amber); }
-    .char-counter.error { color: var(--neon-red); }
+        .header h1 {
+            font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800;
+            background: linear-gradient(135deg, #fff 20%, var(--c-accent-2) 50%, var(--c-cyan) 80%);
+            -webkit-background-clip:text; background-clip:text;
+            -webkit-text-fill-color:transparent;
+            letter-spacing:-.02em; line-height:1.15; margin-bottom:.5rem;
+        }
+        .header__sub {
+            color:var(--c-text-2); font-size:.95rem;
+            display:flex; align-items:center; justify-content:center; gap:.75rem; flex-wrap:wrap;
+        }
+        .header__tag {
+            display:inline-flex; align-items:center; gap:.3rem;
+            padding:.2rem .6rem; border-radius:6px;
+            background: var(--c-surface-2); border:1px solid var(--c-border);
+            font-size:.78rem; color:var(--c-text-2); font-weight:500;
+        }
 
-    /* ── Run button ─────────────────────────────────────────────── */
-    #run-btn {
-      width: 100%;
-      padding: .9rem;
-      background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
-      border: none; border-radius: 10px;
-      color: #fff; font-family: inherit;
-      font-size: 1rem; font-weight: 600;
-      cursor: pointer;
-      position: relative; overflow: hidden;
-      transition: opacity .2s, transform .15s, box-shadow .2s;
-      box-shadow: 0 0 24px rgba(59,130,246,.3);
-    }
-    #run-btn:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 0 36px rgba(59,130,246,.45);
-    }
-    #run-btn:active:not(:disabled) { transform: translateY(0); }
-    #run-btn:disabled { opacity: .5; cursor: not-allowed; }
-    #run-btn::after {
-      content: '';
-      position: absolute; inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,.1), transparent);
-      pointer-events: none;
-    }
+        /* ── Glass Cards ─────────────────────────────────────────────── */
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(var(--glass-blur));
+            border-radius: var(--radius-lg);
+            border:1px solid var(--c-border);
+            box-shadow: var(--shadow-card);
+            transition: border-color var(--transition), box-shadow var(--transition);
+        }
+        .card:hover { border-color: var(--c-border-hi); }
+        .card__header {
+            padding:1.25rem 1.5rem; display:flex; align-items:center; gap:.65rem;
+            border-bottom:1px solid var(--c-border);
+        }
+        .card__icon {
+            width:36px; height:36px; border-radius:var(--radius-sm);
+            display:grid; place-items:center; font-size:1.1rem; flex-shrink:0;
+        }
+        .card__icon--purple { background:rgba(108,92,231,.15); }
+        .card__icon--cyan   { background:var(--c-cyan-dim); }
+        .card__icon--green  { background:var(--c-green-dim); }
+        .card__icon--pink   { background:var(--c-pink-dim); }
+        .card__title { font-size:1.05rem; font-weight:600; color:var(--c-text); }
+        .card__body  { padding:1.5rem; }
 
-    /* ── Agent timeline ─────────────────────────────────────────── */
-    .timeline { margin: 1.75rem 0; display: flex; align-items: stretch; gap: 0; }
+        /* ── Grid ────────────────────────────────────────────────────── */
+        .grid-main {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+        @media (max-width:960px) { .grid-main { grid-template-columns:1fr; } }
 
-    .timeline-step {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      position: relative;
-    }
-    .timeline-step:not(:last-child)::after {
-      content: '';
-      position: absolute;
-      top: 22px; left: 60%;
-      width: calc(80%); height: 2px;
-      background: var(--glass-border);
-      transition: background .4s;
-    }
-    .timeline-step.done:not(:last-child)::after {
-      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
-    }
+        .sidebar { display:flex; flex-direction:column; gap:1.5rem; }
 
-    .step-bubble {
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      border: 2px solid var(--glass-border);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem;
-      background: var(--bg2);
-      transition: border-color .3s, box-shadow .3s, transform .3s;
-      position: relative; z-index: 1;
-    }
-    .timeline-step.active .step-bubble {
-      border-color: var(--c);
-      box-shadow: 0 0 16px var(--c);
-      animation: bubble-pulse 1.5s infinite;
-    }
-    .timeline-step.done .step-bubble {
-      border-color: var(--c);
-      background: rgba(var(--cr),var(--cg),var(--cb),.15);
-    }
-    @keyframes bubble-pulse {
-      0%, 100% { box-shadow: 0 0 12px var(--c); }
-      50%       { box-shadow: 0 0 28px var(--c); }
-    }
+        /* ── Form ────────────────────────────────────────────────────── */
+        .form-group { margin-bottom:1.25rem; }
+        .form-label {
+            display:block; margin-bottom:.4rem; font-size:.82rem;
+            font-weight:600; color:var(--c-text-2); text-transform:uppercase;
+            letter-spacing:.05em;
+        }
+        .form-input, .form-select {
+            width:100%; padding:.7rem 1rem; font-size:.92rem;
+            background: var(--c-surface-2); color:var(--c-text);
+            border:1px solid var(--c-border); border-radius:var(--radius-sm);
+            font-family:var(--font-sans);
+            transition: border-color var(--transition), box-shadow var(--transition);
+        }
+        .form-input::placeholder { color:var(--c-text-3); }
+        .form-input:focus, .form-select:focus {
+            outline:none; border-color:var(--c-accent);
+            box-shadow: 0 0 0 3px rgba(108,92,231,.2);
+        }
+        .form-select { cursor:pointer; appearance:none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239898b0' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+            background-repeat:no-repeat; background-position:right 12px center;
+        }
+        .form-select option { background:var(--c-surface-2); color:var(--c-text); }
+        .form-hint { font-size:.75rem; color:var(--c-text-3); margin-top:.3rem; }
+        .char-count { float:right; font-variant-numeric:tabular-nums; }
 
-    .step-label {
-      margin-top: .5rem;
-      font-size: .72rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: .1em; color: var(--text-dim);
-      transition: color .3s;
-    }
-    .timeline-step.active .step-label,
-    .timeline-step.done  .step-label { color: var(--c); }
+        /* ── Buttons ─────────────────────────────────────────────────── */
+        .btn-primary {
+            width:100%; padding:.85rem 1.5rem;
+            font-size:.95rem; font-weight:600; font-family:var(--font-sans);
+            color:#fff; cursor:pointer;
+            background: linear-gradient(135deg, var(--c-accent), #8b5cf6);
+            border:none; border-radius:var(--radius-sm);
+            transition: all var(--transition);
+            position:relative; overflow:hidden;
+            display:flex; align-items:center; justify-content:center; gap:.5rem;
+        }
+        .btn-primary::after {
+            content:''; position:absolute; inset:0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.15), transparent);
+            transform:translateX(-100%); transition: transform .6s;
+        }
+        .btn-primary:hover::after { transform:translateX(100%); }
+        .btn-primary:hover { transform:translateY(-1px); box-shadow: 0 8px 24px rgba(108,92,231,.35); }
+        .btn-primary:disabled {
+            opacity:.5; cursor:not-allowed; transform:none !important;
+            box-shadow:none !important;
+        }
+        .btn-primary:disabled::after { display:none; }
 
-    .step-status {
-      font-size: .65rem; color: var(--text-muted);
-      margin-top: .2rem;
-    }
+        .btn-sm {
+            padding:.45rem .85rem; font-size:.78rem; font-weight:500;
+            font-family:var(--font-sans);
+            background:var(--c-surface-2); color:var(--c-text-2);
+            border:1px solid var(--c-border); border-radius:6px;
+            cursor:pointer; transition: all var(--transition);
+            display:inline-flex; align-items:center; gap:.35rem;
+        }
+        .btn-sm:hover { border-color:var(--c-accent); color:var(--c-accent); background:rgba(108,92,231,.08); }
 
-    /* Step colours via CSS variables */
-    .step-researcher { --c: var(--agent-r); }
-    .step-writer     { --c: var(--agent-w); }
-    .step-editor     { --c: var(--agent-e); }
+        /* ── Pipeline tracker ────────────────────────────────────────── */
+        .pipeline {
+            display:flex; align-items:flex-start; gap:0; position:relative;
+            padding:.5rem 0;
+        }
+        .pipeline__connector {
+            flex:1; height:2px; margin-top:19px;
+            background:var(--c-border); position:relative;
+        }
+        .pipeline__connector-fill {
+            position:absolute; inset:0; background:var(--c-accent);
+            transform:scaleX(0); transform-origin:left; transition: transform .6s ease;
+        }
+        .pipeline__connector.done .pipeline__connector-fill { transform:scaleX(1); }
 
-    /* ── Progress bar ───────────────────────────────────────────── */
-    .progress-wrap {
-      height: 4px;
-      background: var(--bg3);
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 1.5rem;
-    }
-    #progress-bar {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple), var(--neon-cyan));
-      background-size: 200% 100%;
-      border-radius: 4px;
-      transition: width .5s ease;
-      animation: shimmer 2s linear infinite;
-    }
-    @keyframes shimmer {
-      0% { background-position: 200% center; }
-      100% { background-position: -200% center; }
-    }
+        .pipeline__node {
+            display:flex; flex-direction:column; align-items:center; gap:.45rem;
+            min-width:80px; position:relative; z-index:1;
+        }
+        .pipeline__circle {
+            width:40px; height:40px; border-radius:50%;
+            display:grid; place-items:center; font-size:1.15rem;
+            background:var(--c-surface-2); border:2px solid var(--c-border);
+            transition: all .4s ease; position:relative;
+        }
+        .pipeline__node.active .pipeline__circle {
+            border-color:var(--c-accent); background:rgba(108,92,231,.2);
+            box-shadow: 0 0 20px rgba(108,92,231,.4);
+            animation: ringPulse 2s infinite;
+        }
+        .pipeline__node.done .pipeline__circle {
+            border-color:var(--c-green); background:rgba(0,184,148,.15);
+            box-shadow: 0 0 12px rgba(0,184,148,.3);
+        }
+        .pipeline__node.done .pipeline__circle::after {
+            content:'✓'; position:absolute; font-size:.6rem; font-weight:800;
+            color:var(--c-green); bottom:-2px; right:-2px;
+            background:var(--c-surface-1); border-radius:50%;
+            width:14px; height:14px; display:grid; place-items:center;
+        }
+        @keyframes ringPulse {
+            0%,100% { box-shadow: 0 0 20px rgba(108,92,231,.4); }
+            50%     { box-shadow: 0 0 30px rgba(108,92,231,.6), 0 0 60px rgba(108,92,231,.15); }
+        }
+        .pipeline__label {
+            font-size:.72rem; font-weight:600; text-transform:uppercase;
+            letter-spacing:.04em; color:var(--c-text-3); text-align:center;
+            transition: color .3s;
+        }
+        .pipeline__node.active .pipeline__label { color:var(--c-accent-2); }
+        .pipeline__node.done   .pipeline__label { color:var(--c-green); }
+        .pipeline__time {
+            font-size:.65rem; color:var(--c-text-3); font-family:var(--font-mono);
+        }
 
-    /* ── Report output ──────────────────────────────────────────── */
-    #report-section { display: none; }
+        /* ── Status box ──────────────────────────────────────────────── */
+        .status-box {
+            padding:1rem 1.25rem; border-radius:var(--radius-sm);
+            background:var(--c-surface-2); border:1px solid var(--c-border);
+            display:flex; align-items:center; gap:.75rem;
+            font-size:.88rem; color:var(--c-text-2);
+            min-height:52px; transition: all .3s;
+        }
+        .status-box.running { border-color:rgba(108,92,231,.3); background:rgba(108,92,231,.06); }
+        .status-box.success { border-color:rgba(0,184,148,.3); background:var(--c-green-dim); color:var(--c-green); }
+        .status-box.error   { border-color:rgba(255,118,117,.3); background:var(--c-red-dim); color:var(--c-red); }
 
-    #report-content {
-      background: var(--bg2);
-      border: 1px solid var(--glass-border);
-      border-radius: 10px;
-      padding: 1.5rem;
-      font-size: .9rem;
-      line-height: 1.75;
-      color: var(--text);
-      white-space: pre-wrap;
-      max-height: 480px;
-      overflow-y: auto;
-      font-family: 'Inter', sans-serif;
-    }
-    #report-content::-webkit-scrollbar { width: 5px; }
-    #report-content::-webkit-scrollbar-track { background: transparent; }
-    #report-content::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 5px; }
+        .spinner-sm {
+            width:16px; height:16px; border:2px solid var(--c-border);
+            border-top-color:var(--c-accent); border-radius:50%;
+            animation: spin .8s linear infinite; flex-shrink:0;
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
 
-    .report-actions {
-      display: flex; gap: .75rem;
-      margin-top: 1rem;
-    }
-    .action-btn {
-      display: flex; align-items: center; gap: .4rem;
-      padding: .5rem 1rem;
-      background: var(--glass);
-      border: 1px solid var(--glass-border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: inherit; font-size: .82rem; cursor: pointer;
-      transition: background .2s, border-color .2s, transform .15s;
-    }
-    .action-btn:hover {
-      background: rgba(255,255,255,.08);
-      border-color: var(--neon-blue);
-      transform: translateY(-1px);
-    }
-    .action-btn:active { transform: translateY(0); }
+        /* ── Report area ─────────────────────────────────────────────── */
+        .report-area { display:flex; flex-direction:column; gap:1.5rem; }
 
-    /* ── Logs panel ─────────────────────────────────────────────── */
-    .logs-toggle {
-      display: flex; align-items: center; justify-content: space-between;
-      cursor: pointer;
-      user-select: none;
-      padding: .75rem 0;
-      border-top: 1px solid var(--glass-border);
-      margin-top: 1.25rem;
-    }
-    .logs-toggle-label {
-      display: flex; align-items: center; gap: .5rem;
-      font-size: .8rem; font-weight: 500; color: var(--text-dim);
-    }
-    .logs-badge {
-      background: var(--neon-blue);
-      color: #fff;
-      border-radius: 100px;
-      font-size: .65rem; font-weight: 700;
-      padding: .1rem .45rem;
-    }
-    .chevron { transition: transform .3s; display:inline-block; }
-    .logs-toggle.open .chevron { transform: rotate(180deg); }
+        .report-content {
+            padding:1.5rem 1.75rem; min-height:300px; max-height:70vh;
+            overflow-y:auto; line-height:1.8; font-size:.92rem;
+            background: var(--c-surface-1); border-radius:var(--radius-md);
+            border:1px solid var(--c-border);
+        }
+        /* Markdown styling inside report */
+        .report-content h1 { font-size:1.4rem; font-weight:700; margin:1rem 0 .5rem; color:#fff; }
+        .report-content h2 { font-size:1.15rem; font-weight:600; margin:1rem 0 .4rem; color:var(--c-accent-2); }
+        .report-content h3 { font-size:1rem; font-weight:600; margin:.8rem 0 .3rem; color:var(--c-cyan); }
+        .report-content p  { margin-bottom:.75rem; }
+        .report-content ul, .report-content ol { padding-left:1.5rem; margin-bottom:.75rem; }
+        .report-content li { margin-bottom:.3rem; }
+        .report-content strong { color:#fff; }
+        .report-content a { color:var(--c-cyan); text-decoration:none; }
+        .report-content a:hover { text-decoration:underline; }
+        .report-content blockquote {
+            border-left:3px solid var(--c-accent); padding:.5rem 1rem;
+            margin:.75rem 0; background:rgba(108,92,231,.06); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+        }
+        .report-content code {
+            background:var(--c-surface-3); padding:.15rem .4rem; border-radius:4px;
+            font-family:var(--font-mono); font-size:.84rem;
+        }
 
-    #logs-container {
-      display: none;
-      max-height: 300px;
-      overflow-y: auto;
-      margin-top: .5rem;
-    }
-    #logs-container::-webkit-scrollbar { width: 4px; }
-    #logs-container::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; }
+        .report-content::-webkit-scrollbar { width:6px; }
+        .report-content::-webkit-scrollbar-track { background:transparent; }
+        .report-content::-webkit-scrollbar-thumb { background:var(--c-surface-3); border-radius:3px; }
 
-    .log-entry {
-      display: grid;
-      grid-template-columns: 110px 100px 1fr;
-      gap: .5rem;
-      padding: .45rem 0;
-      border-bottom: 1px solid var(--glass-border);
-      font-size: .73rem;
-      font-family: 'JetBrains Mono', monospace;
-      animation: fade-in .2s ease;
-    }
-    @keyframes fade-in { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: none; } }
+        /* ── Empty / placeholder states ───────────────────────────────── */
+        .empty {
+            text-align:center; padding:3rem 1.5rem; color:var(--c-text-3);
+        }
+        .empty__icon { font-size:2.5rem; margin-bottom:.75rem; opacity:.4; }
+        .empty__text { font-size:.88rem; }
 
-    .log-ts { color: var(--text-muted); }
-    .log-node {
-      font-weight: 600;
-      padding: .1rem .35rem;
-      border-radius: 4px;
-      font-size: .68rem;
-      text-align: center;
-    }
-    .log-node.researcher { background: rgba(6,182,212,.15); color: var(--neon-cyan); }
-    .log-node.writer     { background: rgba(139,92,246,.15); color: var(--neon-purple); }
-    .log-node.editor     { background: rgba(16,185,129,.15); color: var(--neon-green); }
-    .log-msg { color: var(--text-dim); align-self: center; }
+        /* ── Research notes ───────────────────────────────────────────── */
+        .note-item {
+            padding:.85rem 1rem; margin-bottom:.6rem;
+            background:var(--c-surface-2); border-radius:var(--radius-sm);
+            border-left:3px solid var(--c-accent);
+            font-size:.85rem; line-height:1.6;
+            transition: border-color .3s;
+        }
+        .note-item:hover { border-color:var(--c-cyan); }
+        .note-source {
+            display:block; margin-top:.3rem; font-size:.75rem;
+            color:var(--c-text-3); word-break:break-all;
+        }
+        .note-source a { color:var(--c-cyan); text-decoration:none; }
+        .note-source a:hover { text-decoration:underline; }
 
-    /* ── Sidebar ─────────────────────────────────────────────────── */
-    .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+        /* ── Citations ───────────────────────────────────────────────── */
+        .citation-chip {
+            display:inline-flex; align-items:center; gap:.35rem;
+            padding:.3rem .7rem; margin:.25rem;
+            background:var(--c-surface-2); border:1px solid var(--c-border);
+            border-radius:100px; font-size:.75rem; color:var(--c-text-2);
+            transition: all .2s;
+        }
+        .citation-chip:hover { border-color:var(--c-cyan); color:var(--c-cyan); }
+        .citation-chip a { color:inherit; text-decoration:none; }
 
-    /* Citations */
-    #citations-card { flex: 1; }
-    #citation-list { list-style: none; }
-    #citation-list li {
-      padding: .5rem 0;
-      border-bottom: 1px solid var(--glass-border);
-      font-size: .78rem;
-    }
-    #citation-list li:last-child { border-bottom: none; }
-    #citation-list a {
-      color: var(--neon-blue);
-      text-decoration: none;
-      word-break: break-all;
-      display: flex; align-items: flex-start; gap: .4rem;
-      transition: color .2s;
-    }
-    #citation-list a:hover { color: var(--neon-cyan); }
-    #citation-list a::before { content: '↗'; flex-shrink: 0; }
+        /* ── Logs ────────────────────────────────────────────────────── */
+        .logs-wrap { max-height:0; overflow:hidden; transition: max-height .4s ease; }
+        .logs-wrap.open { max-height:500px; overflow-y:auto; }
 
-    .empty-state {
-      color: var(--text-muted);
-      font-size: .8rem;
-      text-align: center;
-      padding: 1.5rem 0;
-    }
+        .log-line {
+            display:flex; gap:.6rem; padding:.5rem .75rem;
+            font-family:var(--font-mono); font-size:.76rem;
+            border-bottom:1px solid var(--c-border);
+            transition: background .2s;
+        }
+        .log-line:hover { background:rgba(108,92,231,.04); }
+        .log-ts   { color:var(--c-text-3); flex-shrink:0; min-width:70px; }
+        .log-node { color:var(--c-accent-2); font-weight:600; min-width:80px; flex-shrink:0; }
+        .log-node.researcher { color:var(--c-cyan); }
+        .log-node.writer     { color:var(--c-pink); }
+        .log-node.editor     { color:var(--c-green); }
+        .log-msg  { color:var(--c-text-2); }
 
-    /* Stats mini-card */
-    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
-    .stat-item {
-      background: var(--bg2);
-      border: 1px solid var(--glass-border);
-      border-radius: 8px;
-      padding: .75rem;
-      text-align: center;
-    }
-    .stat-value {
-      font-size: 1.3rem; font-weight: 700;
-      background: linear-gradient(135deg, var(--neon-blue), var(--neon-cyan));
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .stat-label { font-size: .65rem; color: var(--text-muted); margin-top: .2rem; }
+        .toggle-btn {
+            width:100%; display:flex; justify-content:space-between; align-items:center;
+            padding:.85rem 1.25rem; background:none; border:none;
+            color:var(--c-text); font-family:var(--font-sans); font-size:.9rem;
+            font-weight:600; cursor:pointer;
+        }
+        .toggle-arrow { transition: transform .3s; color:var(--c-text-3); font-size:.8rem; }
+        .toggle-arrow.open { transform:rotate(180deg); }
 
-    /* LLM mode badge */
-    #llm-mode-badge {
-      display: flex; align-items: center; gap: .5rem;
-      padding: .6rem 1rem;
-      border-radius: 8px;
-      background: var(--glass);
-      border: 1px solid var(--glass-border);
-      font-size: .78rem;
-    }
-    #llm-mode-icon { font-size: 1rem; }
-    #llm-mode-text { color: var(--text-dim); }
+        /* ── Toast ────────────────────────────────────────────────────── */
+        .toast-container { position:fixed; top:1.5rem; right:1.5rem; z-index:999; display:flex; flex-direction:column; gap:.5rem; }
+        .toast {
+            padding:.75rem 1.25rem; border-radius:var(--radius-sm);
+            font-size:.85rem; font-weight:500; color:#fff;
+            box-shadow: 0 8px 24px rgba(0,0,0,.3);
+            animation: toastIn .3s ease;
+            display:flex; align-items:center; gap:.5rem;
+        }
+        .toast.success { background:var(--c-green); }
+        .toast.error   { background:var(--c-red); }
+        .toast.info    { background:var(--c-accent); }
+        @keyframes toastIn { from { opacity:0; transform:translateX(40px); } to { opacity:1; transform:none; } }
 
-    /* ── Error toast ─────────────────────────────────────────────── */
-    #error-toast {
-      display: none;
-      margin-top: 1rem;
-      padding: .75rem 1rem;
-      background: rgba(239,68,68,.12);
-      border: 1px solid rgba(239,68,68,.3);
-      border-radius: 8px;
-      color: #fca5a5;
-      font-size: .85rem;
-    }
+        /* ── Health indicator ─────────────────────────────────────────── */
+        .health-dot {
+            width:8px; height:8px; border-radius:50%; flex-shrink:0;
+        }
+        .health-dot.ok    { background:var(--c-green); box-shadow:0 0 6px var(--c-green); }
+        .health-dot.warn  { background:var(--c-orange); box-shadow:0 0 6px var(--c-orange); }
+        .health-dot.error { background:var(--c-red); box-shadow:0 0 6px var(--c-red); }
 
-    /* ── Skeleton loader ─────────────────────────────────────────── */
-    .skeleton-line {
-      height: 12px;
-      border-radius: 6px;
-      background: linear-gradient(90deg, var(--bg3) 25%, var(--bg2) 50%, var(--bg3) 75%);
-      background-size: 200% 100%;
-      animation: skeleton-shimmer 1.5s infinite;
-      margin-bottom: .75rem;
-    }
-    @keyframes skeleton-shimmer {
-      0% { background-position: 200% center; }
-      100% { background-position: -200% center; }
-    }
-    .skeleton-line:nth-child(2) { width: 85%; }
-    .skeleton-line:nth-child(3) { width: 92%; }
-    .skeleton-line:nth-child(4) { width: 70%; }
+        /* ── Tabs ────────────────────────────────────────────────────── */
+        .tabs { display:flex; border-bottom:1px solid var(--c-border); padding:0 1.5rem; }
+        .tab {
+            padding:.75rem 1.25rem; font-size:.82rem; font-weight:600;
+            color:var(--c-text-3); cursor:pointer; background:none; border:none;
+            font-family:var(--font-sans); position:relative;
+            transition: color .2s;
+        }
+        .tab:hover { color:var(--c-text-2); }
+        .tab.active { color:var(--c-accent-2); }
+        .tab.active::after {
+            content:''; position:absolute; bottom:-1px; left:0; right:0;
+            height:2px; background:var(--c-accent); border-radius:2px 2px 0 0;
+        }
+        .tab-panel { display:none; }
+        .tab-panel.active { display:block; }
 
-    /* ── Scrollbar global ────────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 5px; }
+        /* ── Copy feedback ───────────────────────────────────────────── */
+        .copied { color:var(--c-green) !important; border-color:var(--c-green) !important; }
 
-    /* ── Utility ─────────────────────────────────────────────────── */
-    .hidden { display: none !important; }
-    .flex-center { display: flex; align-items: center; justify-content: center; }
-
-    /* ── Section title ───────────────────────────────────────────── */
-    .section-heading {
-      font-size: 1.4rem; font-weight: 700; letter-spacing: -.02em;
-      margin-bottom: .35rem;
-    }
-    .section-sub {
-      font-size: .85rem; color: var(--text-dim);
-      margin-bottom: 1.5rem;
-    }
-
-    /* ── Intro hero ──────────────────────────────────────────────── */
-    .hero {
-      text-align: center;
-      padding: 3rem 0 2rem;
-    }
-    .hero-title {
-      font-size: clamp(2rem, 5vw, 3.2rem);
-      font-weight: 800;
-      letter-spacing: -.04em;
-      line-height: 1.1;
-      background: linear-gradient(135deg, #fff 30%, var(--neon-blue) 60%, var(--neon-purple));
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: .75rem;
-    }
-    .hero-sub {
-      font-size: 1rem; color: var(--text-dim);
-      max-width: 520px; margin: 0 auto 2rem;
-      line-height: 1.65;
-    }
-    .hero-tags {
-      display: flex; flex-wrap: wrap; gap: .5rem;
-      justify-content: center;
-      margin-bottom: 2rem;
-    }
-    .tag {
-      padding: .3rem .75rem;
-      border-radius: 100px;
-      border: 1px solid var(--glass-border);
-      background: var(--glass);
-      font-size: .72rem; font-weight: 500;
-      color: var(--text-dim);
-    }
-    .tag.blue   { border-color: rgba(59,130,246,.4);  color: var(--neon-blue);   background: rgba(59,130,246,.08); }
-    .tag.purple { border-color: rgba(139,92,246,.4);  color: var(--neon-purple); background: rgba(139,92,246,.08); }
-    .tag.cyan   { border-color: rgba(6,182,212,.4);   color: var(--neon-cyan);   background: rgba(6,182,212,.08); }
-    .tag.green  { border-color: rgba(16,185,129,.4);  color: var(--neon-green);  background: rgba(16,185,129,.08); }
-  </style>
+        /* ── Responsive ──────────────────────────────────────────────── */
+        @media (max-width:768px) {
+            .app { padding:1rem; }
+            .header { padding:1.75rem 1.25rem 1.5rem; }
+            .pipeline { flex-wrap:wrap; justify-content:center; gap:.75rem; }
+            .pipeline__connector { display:none; }
+        }
+    </style>
 </head>
 <body>
-  <!-- Ambient glows -->
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
 
-  <div class="app-wrap">
-    <!-- ── Header ─────────────────────────────────────────────── -->
-    <header>
-      <div class="logo">
-        <div class="logo-icon">🔬</div>
-        <div class="logo-text">Research<span>AI</span></div>
-      </div>
-      <div class="header-badge">
-        <span class="badge-dot"></span>
-        3-Agent Pipeline Ready
-      </div>
+<!-- Background Effects -->
+<div class="bg-grid"></div>
+<div class="bg-orb bg-orb--1"></div>
+<div class="bg-orb bg-orb--2"></div>
+<div class="bg-orb bg-orb--3"></div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="app">
+
+    <!-- ─── Header ──────────────────────────────────────────────── -->
+    <header class="header" id="appHeader">
+        <div class="header__badge">
+            <span class="dot"></span>
+            <span id="healthLabel">Connecting…</span>
+        </div>
+        <h1>Multi-Agent Research Pipeline</h1>
+        <div class="header__sub">
+            <span class="header__tag">🧠 LangGraph</span>
+            <span class="header__tag">⚡ Groq API</span>
+            <span class="header__tag">🗄️ ChromaDB</span>
+            <span class="header__tag">3 Agents</span>
+        </div>
     </header>
 
-    <!-- ── Hero ───────────────────────────────────────────────── -->
-    <div class="hero">
-      <h1 class="hero-title">Multi-Agent Research<br/>Pipeline</h1>
-      <p class="hero-sub">
-        Researcher → Writer → Editor. Powered by LangGraph orchestration, Groq LLM,
-        and ChromaDB vector search — producing cited, structured reports in seconds.
-      </p>
-      <div class="hero-tags">
-        <span class="tag blue">LangGraph</span>
-        <span class="tag purple">Groq llama-3.1-8b-instant</span>
-        <span class="tag cyan">ChromaDB</span>
-        <span class="tag green">Automatic Fallback</span>
-        <span class="tag">Rate Limited</span>
-        <span class="tag">Input Validated</span>
-      </div>
-    </div>
+    <!-- ─── Main Grid ───────────────────────────────────────────── -->
+    <div class="grid-main">
 
-    <!-- ── Main layout ────────────────────────────────────────── -->
-    <div class="main-grid">
-      <!-- Left: query + output -->
-      <div>
-        <!-- Query form -->
-        <div class="card query-section" id="query-card">
-          <p class="card-title">Research Query</p>
+        <!-- ─── Sidebar ─────────────────────────────────────────── -->
+        <aside class="sidebar">
 
-          <label class="input-label" for="query-input">What do you want to research?</label>
-          <textarea id="query-input"
-                    placeholder="e.g. The impact of large language models on scientific research..."
-                    maxlength="397"
-                    aria-label="Research query"
-                    aria-required="true"
-                    rows="4"></textarea>
-          <div class="char-counter" id="char-counter">0 / 397</div>
-
-          <div class="input-row" style="margin-top:.75rem;">
-            <div class="field">
-              <label class="input-label" for="audience-input">Target Audience</label>
-              <input type="text" id="audience-input"
-                     placeholder="e.g. university students"
-                     maxlength="397"
-                     value="general public"
-                     aria-label="Target audience" />
+            <!-- Input Form -->
+            <div class="card" id="formCard">
+                <div class="card__header">
+                    <div class="card__icon card__icon--purple">📝</div>
+                    <span class="card__title">Research Query</span>
+                </div>
+                <div class="card__body">
+                    <form id="researchForm" autocomplete="off">
+                        <div class="form-group">
+                            <label class="form-label" for="queryInput">Topic *</label>
+                            <input
+                                type="text" id="queryInput" class="form-input"
+                                placeholder="e.g. Impact of AI on modern healthcare"
+                                maxlength="500" required
+                            >
+                            <div class="form-hint">
+                                <span class="char-count"><span id="charCount">0</span>/500</span>
+                                Describe your research topic
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="audienceSelect">Audience</label>
+                            <select id="audienceSelect" class="form-select">
+                                <option value="general">🌍 General Public</option>
+                                <option value="technical">🔧 Technical</option>
+                                <option value="academic">🎓 Academic</option>
+                                <option value="business">💼 Business</option>
+                                <option value="student">📚 Student</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="lengthSelect">Report Length</label>
+                            <select id="lengthSelect" class="form-select">
+                                <option value="short">📄 Short (2-3 paragraphs)</option>
+                                <option value="medium" selected>📑 Medium (4-5 paragraphs)</option>
+                                <option value="long">📒 Long (6-8 paragraphs)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-primary" id="submitBtn">
+                            <span id="btnIcon">🚀</span>
+                            <span id="btnText">Generate Report</span>
+                        </button>
+                    </form>
+                </div>
             </div>
-            <div class="field">
-              <label class="input-label" for="length-select">Report Length</label>
-              <select id="length-select" aria-label="Report length">
-                <option value="short">Short (~300 words)</option>
-                <option value="medium" selected>Medium (~600 words)</option>
-                <option value="long">Long (~1000 words)</option>
-              </select>
+
+            <!-- Pipeline Tracker -->
+            <div class="card" id="pipelineCard">
+                <div class="card__header">
+                    <div class="card__icon card__icon--cyan">⚡</div>
+                    <span class="card__title">Agent Pipeline</span>
+                </div>
+                <div class="card__body">
+                    <div class="pipeline" id="pipeline">
+                        <div class="pipeline__node" id="node-researcher" data-agent="researcher">
+                            <div class="pipeline__circle">🔍</div>
+                            <span class="pipeline__label">Researcher</span>
+                            <span class="pipeline__time" id="time-researcher"></span>
+                        </div>
+                        <div class="pipeline__connector" id="conn-1">
+                            <div class="pipeline__connector-fill"></div>
+                        </div>
+                        <div class="pipeline__node" id="node-writer" data-agent="writer">
+                            <div class="pipeline__circle">✍️</div>
+                            <span class="pipeline__label">Writer</span>
+                            <span class="pipeline__time" id="time-writer"></span>
+                        </div>
+                        <div class="pipeline__connector" id="conn-2">
+                            <div class="pipeline__connector-fill"></div>
+                        </div>
+                        <div class="pipeline__node" id="node-editor" data-agent="editor">
+                            <div class="pipeline__circle">✨</div>
+                            <span class="pipeline__label">Editor</span>
+                            <span class="pipeline__time" id="time-editor"></span>
+                        </div>
+                    </div>
+                    <div class="status-box" id="statusBox">
+                        <span>💡 Enter a research topic to begin</span>
+                    </div>
+                </div>
             </div>
-          </div>
 
-          <div id="error-toast" role="alert" aria-live="polite"></div>
-
-          <button id="run-btn" onclick="runPipeline()">
-            ⚡ Run Research Pipeline
-          </button>
-        </div>
-
-        <!-- Agent timeline -->
-        <div class="card" style="margin-top:1.25rem;" id="timeline-card">
-          <p class="card-title">Pipeline Progress</p>
-          <div class="progress-wrap">
-            <div id="progress-bar"></div>
-          </div>
-          <div class="timeline" role="list" aria-label="3-agent pipeline steps">
-            <div class="timeline-step step-researcher" id="step-researcher" role="listitem">
-              <div class="step-bubble">🔍</div>
-              <div class="step-label">Researcher</div>
-              <div class="step-status" id="status-researcher">Waiting</div>
+            <!-- Research Notes -->
+            <div class="card" id="notesCard" style="display:none;">
+                <div class="card__header">
+                    <div class="card__icon card__icon--green">📋</div>
+                    <span class="card__title">Research Notes</span>
+                </div>
+                <div class="card__body" id="notesBody">
+                </div>
             </div>
-            <div class="timeline-step step-writer" id="step-writer" role="listitem">
-              <div class="step-bubble">✍️</div>
-              <div class="step-label">Writer</div>
-              <div class="step-status" id="status-writer">Waiting</div>
+
+        </aside>
+
+        <!-- ─── Main Content ────────────────────────────────────── -->
+        <div class="report-area">
+
+            <!-- Report Card -->
+            <div class="card" id="reportCard">
+                <!-- Tabs -->
+                <div class="tabs" id="reportTabs">
+                    <button class="tab active" data-tab="final" id="tabFinal">📄 Final Report</button>
+                    <button class="tab" data-tab="draft" id="tabDraft">📝 Draft</button>
+                    <button class="tab" data-tab="citations" id="tabCitations">🔗 Citations <span id="citCount"></span></button>
+                </div>
+
+                <!-- Tab: Final Report -->
+                <div class="tab-panel active" id="panel-final">
+                    <div style="padding:.75rem 1.5rem; display:flex; justify-content:flex-end; gap:.5rem;" id="reportActions" style="display:none;">
+                        <button class="btn-sm" id="copyBtn" onclick="copyReport()" style="display:none;">📋 Copy</button>
+                        <button class="btn-sm" id="downloadBtn" onclick="downloadReport()" style="display:none;">💾 Download</button>
+                    </div>
+                    <div class="report-content" id="reportContent">
+                        <div class="empty">
+                            <div class="empty__icon">📝</div>
+                            <div class="empty__text">Your AI-generated research report will appear here</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Draft -->
+                <div class="tab-panel" id="panel-draft">
+                    <div class="report-content" id="draftContent" style="opacity:.7;">
+                        <div class="empty">
+                            <div class="empty__icon">✍️</div>
+                            <div class="empty__text">The writer's initial draft will appear here</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Citations -->
+                <div class="tab-panel" id="panel-citations">
+                    <div style="padding:1.5rem;" id="citationsContent">
+                        <div class="empty">
+                            <div class="empty__icon">🔗</div>
+                            <div class="empty__text">Sources will be listed here</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="timeline-step step-editor" id="step-editor" role="listitem">
-              <div class="step-bubble">📝</div>
-              <div class="step-label">Editor</div>
-              <div class="step-status" id="status-editor">Waiting</div>
+
+            <!-- Logs -->
+            <div class="card" id="logsCard">
+                <button class="toggle-btn" id="logsToggle" onclick="toggleLogs()">
+                    <span style="display:flex;align-items:center;gap:.5rem;">
+                        <span style="font-size:1rem;">📊</span> Execution Logs
+                        <span id="logCount" style="font-size:.72rem;padding:.15rem .5rem;background:var(--c-surface-2);border-radius:100px;color:var(--c-text-3);">0</span>
+                    </span>
+                    <span class="toggle-arrow" id="logsArrow">▼</span>
+                </button>
+                <div class="logs-wrap" id="logsWrap">
+                    <div id="logsBody" style="padding:0;">
+                        <div class="empty" style="padding:1.5rem;">
+                            <div class="empty__text">Logs will stream here during execution</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Report output -->
-        <div id="report-section" class="card" style="margin-top:1.25rem;">
-          <p class="card-title">Final Report</p>
-          <div id="report-skeleton">
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line"></div>
-          </div>
-          <pre id="report-content" class="hidden" aria-label="Generated research report"></pre>
-          <div class="report-actions" id="report-actions" style="display:none;">
-            <button class="action-btn" id="copy-btn" onclick="copyReport()" aria-label="Copy report to clipboard">
-              📋 Copy
-            </button>
-            <button class="action-btn" id="download-btn" onclick="downloadReport()" aria-label="Download report as text file">
-              ⬇ Download .txt
-            </button>
-          </div>
+        </div><!-- /report-area -->
+    </div><!-- /grid-main -->
 
-          <!-- Logs collapsible -->
-          <div class="logs-toggle" id="logs-toggle" onclick="toggleLogs()" role="button"
-               tabindex="0" aria-expanded="false" aria-controls="logs-container">
-            <span class="logs-toggle-label">
-              🗂 Observability Logs
-              <span class="logs-badge" id="log-count">0</span>
-            </span>
-            <span class="chevron">▾</span>
-          </div>
-          <div id="logs-container" role="log" aria-live="polite" aria-label="Pipeline execution logs"></div>
-        </div>
-      </div>
+</div><!-- /app -->
 
-      <!-- Sidebar -->
-      <aside class="sidebar">
-        <!-- Stats card -->
-        <div class="card" id="stats-card">
-          <p class="card-title">Run Stats</p>
-          <div class="stat-grid">
-            <div class="stat-item">
-              <div class="stat-value" id="stat-tokens">—</div>
-              <div class="stat-label">Est. Tokens</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value" id="stat-latency">—</div>
-              <div class="stat-label">Total (s)</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value" id="stat-chunks">—</div>
-              <div class="stat-label">Chunks</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value" id="stat-cits">—</div>
-              <div class="stat-label">Citations</div>
-            </div>
-          </div>
-        </div>
+<script>
+// ════════════════════════════════════════════════════════════════
+// APP LOGIC
+// ════════════════════════════════════════════════════════════════
 
-        <!-- LLM mode -->
-        <div class="card" id="llm-mode-badge">
-          <span id="llm-mode-icon">🤖</span>
-          <span id="llm-mode-text">LLM mode will appear here after a run.</span>
-        </div>
+const $ = id => document.getElementById(id);
 
-        <!-- Citations -->
-        <div class="card" id="citations-card">
-          <p class="card-title">Citations</p>
-          <ul id="citation-list">
-            <li class="empty-state">Citations appear after a run.</li>
-          </ul>
-        </div>
-      </aside>
-    </div>
-  </div>
+let currentReport = '';
+let currentDraft = '';
+let isRunning = false;
 
-  <!-- ================================================================
-       Vanilla JS — no external frameworks
-  ================================================================ -->
-  <script>
-    /* ── Constants ────────────────────────────────────────────────── */
-    const MAX_LEN      = 397;   // Must mirror backend MAX_FIELD_LEN
-    const API_RUN      = '/api/run';
-    const API_STATUS   = (id) => `/api/status/${id}`;
-    const ALLOWED_LENS = ['short', 'medium', 'long'];
+// ── Sanitize ────────────────────────────────────────────────────
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
 
-    /* ── DOM refs ─────────────────────────────────────────────────── */
-    const queryInput  = document.getElementById('query-input');
-    const audienceIn  = document.getElementById('audience-input');
-    const lengthSel   = document.getElementById('length-select');
-    const runBtn      = document.getElementById('run-btn');
-    const errorToast  = document.getElementById('error-toast');
-    const progressBar = document.getElementById('progress-bar');
-    const reportSect  = document.getElementById('report-section');
-    const reportSkel  = document.getElementById('report-skeleton');
-    const reportEl    = document.getElementById('report-content');
-    const reportActs  = document.getElementById('report-actions');
-    const charCounter = document.getElementById('char-counter');
-    const logCnt      = document.getElementById('log-count');
-    const logsWrap    = document.getElementById('logs-container');
-    const logsToggle  = document.getElementById('logs-toggle');
+// ── Toast ───────────────────────────────────────────────────────
+function toast(msg, type='info', duration=3000) {
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `<span>${esc(msg)}</span>`;
+    $('toastContainer').appendChild(el);
+    setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(40px)'; el.style.transition='.3s'; }, duration);
+    setTimeout(() => el.remove(), duration + 400);
+}
 
-    /* ── State ────────────────────────────────────────────────────── */
-    let currentReport = '';
-    let currentRunId  = '';
-    let pollTimer     = null;
-    let runStart      = 0;
+// ── Health Check ────────────────────────────────────────────────
+async function checkHealth() {
+    try {
+        const r = await fetch('/api/health');
+        const d = await r.json();
+        const label = $('healthLabel');
+        if (d.llm_available) {
+            label.textContent = 'System Online';
+            label.parentElement.style.background = 'var(--c-green-dim)';
+            label.parentElement.style.color = 'var(--c-green)';
+        } else {
+            label.textContent = 'Fallback Mode (No API Key)';
+            label.parentElement.style.background = 'rgba(253,203,110,.12)';
+            label.parentElement.style.color = 'var(--c-orange)';
+        }
+    } catch {
+        $('healthLabel').textContent = 'Server Offline';
+        $('healthLabel').parentElement.style.background = 'var(--c-red-dim)';
+        $('healthLabel').parentElement.style.color = 'var(--c-red)';
+    }
+}
+checkHealth();
 
-    /* ── Char counter ─────────────────────────────────────────────── */
-    queryInput.addEventListener('input', () => {
-      const len = queryInput.value.length;
-      charCounter.textContent = `${len} / ${MAX_LEN}`;
-      charCounter.className = 'char-counter' + (len > 380 ? (len >= MAX_LEN ? ' error' : ' warn') : '');
+// ── Char counter ────────────────────────────────────────────────
+$('queryInput').addEventListener('input', e => {
+    $('charCount').textContent = e.target.value.length;
+});
+
+// ── Tabs ────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        $(`panel-${tab.dataset.tab}`).classList.add('active');
     });
+});
 
-    /* ── Client-side validation ───────────────────────────────────── */
-    function validateInputs() {
-      const q = queryInput.value.trim();
-      const a = audienceIn.value.trim();
-      const l = lengthSel.value;
+// ── Toggle logs ─────────────────────────────────────────────────
+function toggleLogs() {
+    const wrap = $('logsWrap');
+    const arrow = $('logsArrow');
+    wrap.classList.toggle('open');
+    arrow.classList.toggle('open');
+}
 
-      if (!q || q.length < 3) {
-        return 'Please enter a research query of at least 3 characters.';
-      }
-      if (q.length > MAX_LEN) {
-        return `Query must be ≤ ${MAX_LEN} characters.`;
-      }
-      if (a.length > MAX_LEN) {
-        return `Audience must be ≤ ${MAX_LEN} characters.`;
-      }
-      if (!ALLOWED_LENS.includes(l)) {
-        return 'Invalid report length selection.';
-      }
-      return null;          // null = valid
-    }
+// ── Pipeline UI ─────────────────────────────────────────────────
+function resetPipeline() {
+    ['researcher','writer','editor'].forEach(a => {
+        $(`node-${a}`).className = 'pipeline__node';
+        $(`time-${a}`).textContent = '';
+    });
+    $('conn-1').classList.remove('done');
+    $('conn-2').classList.remove('done');
+    $('statusBox').className = 'status-box';
+    $('statusBox').innerHTML = '<span>💡 Enter a research topic to begin</span>';
+}
 
-    /* ── Show/hide error toast ────────────────────────────────────── */
-    function showError(msg) {
-      errorToast.textContent = `⚠️ ${msg}`;
-      errorToast.style.display = 'block';
-    }
-    function hideError() {
-      errorToast.style.display = 'none';
-    }
+function setAgentActive(agent) {
+    const order = ['researcher','writer','editor'];
+    const idx = order.indexOf(agent);
+    order.forEach((a, i) => {
+        const node = $(`node-${a}`);
+        if (i < idx) {
+            node.className = 'pipeline__node done';
+        } else if (i === idx) {
+            node.className = 'pipeline__node active';
+        } else {
+            node.className = 'pipeline__node';
+        }
+    });
+    if (idx >= 1) $('conn-1').classList.add('done');
+    if (idx >= 2) $('conn-2').classList.add('done');
+}
 
-    /* ── Timeline helpers ─────────────────────────────────────────── */
-    function setStep(name, state) {          // state: idle | active | done
-      const el   = document.getElementById(`step-${name}`);
-      const stat = document.getElementById(`status-${name}`);
-      el.className = `timeline-step step-${name}`;
-      if (state === 'active') { el.classList.add('active'); stat.textContent = 'Running…'; }
-      if (state === 'done')   { el.classList.add('done');   stat.textContent = 'Done ✓'; }
-      if (state === 'idle')   { stat.textContent = 'Waiting'; }
-    }
+function setAllDone() {
+    ['researcher','writer','editor'].forEach(a => {
+        $(`node-${a}`).className = 'pipeline__node done';
+    });
+    $('conn-1').classList.add('done');
+    $('conn-2').classList.add('done');
+}
 
-    function resetTimeline() {
-      ['researcher', 'writer', 'editor'].forEach(n => setStep(n, 'idle'));
-      progressBar.style.width = '0%';
-    }
+function setStatus(html, cls='') {
+    $('statusBox').className = `status-box ${cls}`;
+    $('statusBox').innerHTML = html;
+}
 
-    /* ── Infer active step from logs ─────────────────────────────── */
-    function updateTimelineFromLogs(logs) {
-      const nodes = logs.map(l => l.node);
-      const has = (n) => nodes.includes(n);
-      const last = nodes[nodes.length - 1];
+// ── Display functions ───────────────────────────────────────────
+function displayReport(md) {
+    currentReport = md;
+    $('reportContent').innerHTML = marked.parse(md);
+    $('copyBtn').style.display = 'inline-flex';
+    $('downloadBtn').style.display = 'inline-flex';
+}
 
-      const complete = { researcher: false, writer: false, editor: false };
-      logs.forEach(l => {
-        if (l.node === 'researcher' && l.message.includes('complete')) complete.researcher = true;
-        if (l.node === 'writer'     && l.message.includes('complete')) complete.writer     = true;
-        if (l.node === 'editor'     && l.message.includes('complete')) complete.editor     = true;
-      });
+function displayDraft(md) {
+    currentDraft = md;
+    $('draftContent').innerHTML = marked.parse(md);
+}
 
-      setStep('researcher', complete.researcher ? 'done' : (has('researcher') ? 'active' : 'idle'));
-      setStep('writer',     complete.writer     ? 'done' : (has('writer')     ? 'active' : 'idle'));
-      setStep('editor',     complete.editor     ? 'done' : (has('editor')     ? 'active' : 'idle'));
+function displayNotes(notes) {
+    if (!notes || notes.length === 0) return;
+    $('notesCard').style.display = 'block';
+    $('notesBody').innerHTML = notes.map(n => {
+        let src = esc(n.source);
+        try { new URL(n.source); src = `<a href="${esc(n.source)}" target="_blank" rel="noopener">${esc(n.source)}</a>`; } catch {}
+        return `<div class="note-item">${esc(n.content)}<span class="note-source">📎 ${src}</span></div>`;
+    }).join('');
+}
 
-      const doneCount = Object.values(complete).filter(Boolean).length;
-      progressBar.style.width = `${Math.round((doneCount / 3) * 100)}%`;
-    }
-
-    /* ── Render logs ──────────────────────────────────────────────── */
-    let renderedLogs = 0;
-    function renderNewLogs(logs) {
-      for (let i = renderedLogs; i < logs.length; i++) {
-        const l = logs[i];
-        const ts  = new Date(l.ts).toLocaleTimeString('en-GB', { hour12: false });
-        const div = document.createElement('div');
-        div.className = 'log-entry';
-        div.innerHTML = `
-          <span class="log-ts">${ts}</span>
-          <span class="log-node ${l.node}">${l.node}</span>
-          <span class="log-msg">${escapeHtml(l.message)}${l.latency_s > 0 ? ` <em style="color:var(--text-muted)">(${l.latency_s}s${l.tokens > 0 ? ', '+l.tokens+' tok' : ''})</em>` : ''}</span>
-        `;
-        logsWrap.appendChild(div);
-        logsWrap.scrollTop = logsWrap.scrollHeight;
-      }
-      renderedLogs = logs.length;
-      logCnt.textContent = logs.length;
-    }
-
-    /* ── Update stats ─────────────────────────────────────────────── */
-    function updateStats(logs, citations) {
-      const totalTokens  = logs.reduce((s, l) => s + (l.tokens || 0), 0);
-      const totalLatency = logs.reduce((s, l) => s + (l.latency_s || 0), 0);
-      const chunkLogs    = logs.filter(l => l.message.includes('chunks'));
-      const chunkMatch   = chunkLogs.length ? chunkLogs[0].message.match(/\d+/) : null;
-
-      document.getElementById('stat-tokens').textContent  = totalTokens  || '—';
-      document.getElementById('stat-latency').textContent = totalLatency.toFixed(1) + 's';
-      document.getElementById('stat-chunks').textContent  = chunkMatch ? chunkMatch[0] : '—';
-      document.getElementById('stat-cits').textContent    = citations.length;
-    }
-
-    /* ── Render citations ─────────────────────────────────────────── */
-    function renderCitations(urls) {
-      const list = document.getElementById('citation-list');
-      if (!urls || urls.length === 0) {
-        list.innerHTML = '<li class="empty-state">No citations found.</li>';
+function displayCitations(cits) {
+    if (!cits || cits.length === 0) {
+        $('citationsContent').innerHTML = '<div class="empty"><div class="empty__text">No citations found</div></div>';
+        $('citCount').textContent = '';
         return;
-      }
-      list.innerHTML = urls.map(url =>
-        `<li><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a></li>`
-      ).join('');
+    }
+    $('citCount').textContent = `(${cits.length})`;
+    $('citationsContent').innerHTML = cits.map((c, i) => {
+        let link = esc(c);
+        try { new URL(c); link = `<a href="${esc(c)}" target="_blank" rel="noopener">${esc(c)}</a>`; } catch {}
+        return `<div class="citation-chip">[${i+1}] ${link}</div>`;
+    }).join('');
+}
+
+function displayLogs(logs) {
+    if (!logs || logs.length === 0) return;
+    $('logCount').textContent = logs.length;
+    $('logsBody').innerHTML = logs.map(l => {
+        const t = new Date(l.timestamp).toLocaleTimeString();
+        return `<div class="log-line">
+            <span class="log-ts">${esc(t)}</span>
+            <span class="log-node ${esc(l.node)}">${esc(l.node)}</span>
+            <span class="log-msg">${esc(l.message)}</span>
+        </div>`;
+    }).join('');
+}
+
+// ── Infer active agent from logs ────────────────────────────────
+function inferAgentFromLogs(logs) {
+    if (!logs || logs.length === 0) return null;
+    const last = logs[logs.length - 1];
+    return last.node || null;
+}
+
+// ── Timing from logs ────────────────────────────────────────────
+function extractTimings(logs) {
+    const agents = ['researcher','writer','editor'];
+    const timings = {};
+    for (const a of agents) {
+        const agentLogs = logs.filter(l => l.node === a);
+        if (agentLogs.length >= 2) {
+            const first = new Date(agentLogs[0].timestamp).getTime();
+            const last = new Date(agentLogs[agentLogs.length-1].timestamp).getTime();
+            timings[a] = ((last - first) / 1000).toFixed(1) + 's';
+        }
+    }
+    return timings;
+}
+
+// ── Copy & Download ─────────────────────────────────────────────
+function copyReport() {
+    navigator.clipboard.writeText(currentReport).then(() => {
+        const btn = $('copyBtn');
+        btn.classList.add('copied');
+        btn.innerHTML = '✓ Copied';
+        setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '📋 Copy'; }, 2000);
+    }).catch(() => toast('Copy failed', 'error'));
+}
+
+function downloadReport() {
+    const blob = new Blob([currentReport], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `research_report_${Date.now()}.md`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('Report downloaded!', 'success');
+}
+
+// ── Main form handler ───────────────────────────────────────────
+$('researchForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (isRunning) return;
+
+    const query = $('queryInput').value.trim();
+    const audience = $('audienceSelect').value;
+    const length = $('lengthSelect').value;
+
+    if (!query || query.length < 3) {
+        toast('Please enter a research topic (min 3 characters)', 'error');
+        return;
     }
 
-    /* ── Detect fallback mode from report text ────────────────────── */
-    function updateLlmBadge(report) {
-      const badge = document.getElementById('llm-mode-badge');
-      const icon  = document.getElementById('llm-mode-icon');
-      const text  = document.getElementById('llm-mode-text');
-      if (report.includes('[FALLBACK MODE')) {
-        icon.textContent = '🔌';
-        text.textContent = 'Running in local fallback mode (Groq unavailable).';
-        badge.style.borderColor = 'rgba(245,158,11,.3)';
-      } else {
-        icon.textContent = '⚡';
-        text.textContent = `Groq · llama-3.1-8b-instant`;
-        badge.style.borderColor = 'rgba(59,130,246,.3)';
-      }
-    }
+    isRunning = true;
+    const btn = $('submitBtn');
+    btn.disabled = true;
+    $('btnIcon').textContent = '';
+    $('btnText').textContent = 'Generating…';
 
-    /* ── Main run function ────────────────────────────────────────── */
-    async function runPipeline() {
-      hideError();
-      const err = validateInputs();
-      if (err) { showError(err); return; }
+    // Add spinner to button
+    const sp = document.createElement('span');
+    sp.className = 'spinner-sm';
+    btn.prepend(sp);
 
-      const payload = {
-        query:    queryInput.value.trim().substring(0, MAX_LEN),
-        audience: audienceIn.value.trim().substring(0, MAX_LEN) || 'general public',
-        length:   lengthSel.value,
-      };
+    // Reset
+    resetPipeline();
+    $('notesCard').style.display = 'none';
+    $('reportContent').innerHTML = '<div class="empty"><div class="empty__icon">⏳</div><div class="empty__text">Generating your report…</div></div>';
+    $('draftContent').innerHTML = '<div class="empty"><div class="empty__icon">⏳</div><div class="empty__text">Waiting for draft…</div></div>';
+    $('citationsContent').innerHTML = '';
+    $('copyBtn').style.display = 'none';
+    $('downloadBtn').style.display = 'none';
+    $('citCount').textContent = '';
 
-      // Reset UI
-      runBtn.disabled = true;
-      runBtn.textContent = '⏳ Running Pipeline…';
-      resetTimeline();
-      renderedLogs = 0;
-      logsWrap.innerHTML = '';
-      logCnt.textContent = '0';
-      reportSect.style.display = 'none';
-      currentReport = '';
-      runStart = Date.now();
+    // Animate pipeline
+    setAgentActive('researcher');
+    setStatus('<span class="spinner-sm"></span> <span>Research agent is gathering data…</span>', 'running');
 
-      try {
-        const resp = await fetch(API_RUN, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+    // Simulate agent progression during the API call
+    const agentTimers = [];
+    agentTimers.push(setTimeout(() => {
+        setAgentActive('writer');
+        setStatus('<span class="spinner-sm"></span> <span>Writer agent is drafting the report…</span>', 'running');
+    }, 8000));
+    agentTimers.push(setTimeout(() => {
+        setAgentActive('editor');
+        setStatus('<span class="spinner-sm"></span> <span>Editor agent is polishing the final version…</span>', 'running');
+    }, 18000));
+
+    try {
+        const resp = await fetch('/api/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, audience, length }),
         });
 
-        if (resp.status === 429) {
-          const data = await resp.json().catch(() => ({}));
-          throw new Error(`Rate limit reached. ${data.retry_after ? `Retry after: ${data.retry_after}` : 'Please wait a moment.'}`);
-        }
-        if (resp.status === 422) {
-          const data = await resp.json().catch(() => ({}));
-          const detail = data.details ? JSON.stringify(data.details) : data.error;
-          throw new Error(`Validation error: ${detail}`);
-        }
-        if (!resp.ok) {
-          const data = await resp.json().catch(() => ({}));
-          throw new Error(data.error || `Server error (${resp.status})`);
-        }
+        // Clear simulated timers
+        agentTimers.forEach(t => clearTimeout(t));
 
         const data = await resp.json();
-        currentRunId = data.run_id;
 
-        // Update UI with result
-        showReport(data.final_report, data.logs, data.citations);
+        if (!resp.ok) {
+            throw new Error(data.message || data.error || 'Request failed');
+        }
 
-      } catch (ex) {
-        showError(ex.message || 'An unknown error occurred.');
-        resetTimeline();
-      } finally {
-        runBtn.disabled = false;
-        runBtn.textContent = '⚡ Run Research Pipeline';
-        clearTimeout(pollTimer);
-      }
+        // All done
+        setAllDone();
+        setStatus('✅ Research pipeline completed successfully!', 'success');
+
+        // Timings from logs
+        if (data.logs) {
+            const timings = extractTimings(data.logs);
+            for (const [agent, t] of Object.entries(timings)) {
+                $(`time-${agent}`).textContent = t;
+            }
+        }
+
+        // Display results
+        if (data.final_report) displayReport(data.final_report);
+        if (data.draft_report) displayDraft(data.draft_report);
+        if (data.research_notes) displayNotes(data.research_notes);
+        if (data.citations) displayCitations(data.citations);
+        if (data.logs) displayLogs(data.logs);
+
+        // Open logs
+        $('logsWrap').classList.add('open');
+        $('logsArrow').classList.add('open');
+
+        toast('Research report generated!', 'success');
+
+    } catch (err) {
+        // Clear simulated timers
+        agentTimers.forEach(t => clearTimeout(t));
+        setStatus(`❌ ${esc(err.message)}`, 'error');
+        toast(err.message, 'error');
+        $('reportContent').innerHTML = `<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__text">${esc(err.message)}</div></div>`;
+    } finally {
+        isRunning = false;
+        sp.remove();
+        btn.disabled = false;
+        $('btnIcon').textContent = '🚀';
+        $('btnText').textContent = 'Generate Report';
     }
+});
 
-    function showReport(report, logs, citations) {
-      currentReport = report;
-      reportSect.style.display = 'block';
-      reportSkel.style.display = 'none';
-      reportEl.classList.remove('hidden');
-      reportEl.textContent = report;
-      reportActs.style.display = 'flex';
-
-      updateTimelineFromLogs(logs);
-      renderNewLogs(logs);
-      updateStats(logs, citations);
-      renderCitations(citations);
-      updateLlmBadge(report);
-
-      progressBar.style.width = '100%';
-      setStep('researcher', 'done');
-      setStep('writer', 'done');
-      setStep('editor', 'done');
-    }
-
-    /* ── Logs panel toggle ────────────────────────────────────────── */
-    function toggleLogs() {
-      const open = logsWrap.style.display === 'block';
-      logsWrap.style.display = open ? 'none' : 'block';
-      logsToggle.classList.toggle('open', !open);
-      logsToggle.setAttribute('aria-expanded', String(!open));
-    }
-    logsToggle.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleLogs(); }
-    });
-
-    /* ── Copy / Download ─────────────────────────────────────────── */
-    async function copyReport() {
-      if (!currentReport) return;
-      try {
-        await navigator.clipboard.writeText(currentReport);
-        const btn = document.getElementById('copy-btn');
-        btn.textContent = '✅ Copied!';
-        setTimeout(() => btn.textContent = '📋 Copy', 2000);
-      } catch { showError('Clipboard access denied.'); }
-    }
-
-    function downloadReport() {
-      if (!currentReport) return;
-      const blob = new Blob([currentReport], { type: 'text/plain;charset=utf-8' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url;
-      a.download = `research-report-${Date.now()}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-
-    /* ── Security helpers — prevent XSS when inserting dynamic HTML ─ */
-    function escapeHtml(str) {
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-    function escapeAttr(str) {
-      // Safe for href attributes — strips javascript: and data: URIs
-      const s = String(str).trim();
-      if (/^(javascript|data|vbscript):/i.test(s)) return '#';
-      return s;
-    }
-
-    /* ── Keyboard: Ctrl+Enter submits ─────────────────────────────── */
-    queryInput.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.key === 'Enter') { runPipeline(); }
-    });
-  </script>
+// ── Prevent form resubmission ───────────────────────────────────
+if (window.history.replaceState) {
+    window.history.replaceState(null, null, window.location.href);
+}
+</script>
 </body>
 </html>

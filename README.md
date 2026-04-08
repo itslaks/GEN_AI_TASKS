@@ -1,149 +1,195 @@
-# GEN_AI Projects Collection 🚀
+# 🚀 GEN_AI — Generative AI Projects Collection
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Contributions Welcome](https://img.shields.io/badge/Contributions-Welcome-brightgreen.svg)](#contributing)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)](https://www.python.org/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Orchestration-purple)](https://langchain-ai.github.io/langgraph/)
+[![Groq](https://img.shields.io/badge/Groq-LLM-orange)](https://groq.com/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-VectorDB-green)](https://www.trychroma.com/)
 
-A curated collection of AI-powered web applications demonstrating modern Python frameworks, API integrations, and intelligent agents. Each project is self-contained and showcases different aspects of generative AI and reasoning systems.
-
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Tasks](#tasks)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
-
-## 🌟 Overview
-
-This repository contains four distinct AI projects, each focusing on different AI capabilities:
-
-- **Reasoning Agents** with web search integration
-- **Mathematical Problem Solving** using Chain-of-Thought prompting
-- **Code Analysis and Review** automation
-- **Future AI Applications** (Task 4 - in development)
-
-All projects are built with production-ready practices, including proper error handling, logging, and user-friendly interfaces.
-
-## 🛠️ Tasks
-
-### 1. 🤖 Reasoning Agent Web App (`Task_1/`)
-[![Flask](https://img.shields.io/badge/Flask-2.0+-red.svg)](https://flask.palletsprojects.com/)
-
-A Flask-based web application implementing a ReAct (Reasoning + Acting) agent that answers questions using web search when needed. Features evidence-grounded responses with structured reasoning steps.
-
-**Key Features:**
-- 🔍 Intelligent web search using DuckDuckGo API
-- 🧠 Structured ReAct loop (Thought → Action → Observation → Answer)
-- 🌐 Simple web interface for question submission
-- ⚡ Fast, heuristic-based search decision making
-
-[View Task 1 README](Task_1/README.md) | [Demo](http://localhost:8501)
+A comprehensive collection of AI-powered projects spanning **5 days** of coursework — covering prompt engineering, RAG pipelines, agentic workflows, LangGraph orchestration, and capstone projects. Each project is self-contained with its own README, requirements, and interactive UI.
 
 ---
 
-### 2. 🧮 Math CoT Solver (`Task_2/`)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
-[![Groq](https://img.shields.io/badge/Groq-API-orange.svg)](https://groq.com/)
+## 📁 Repository Structure
 
-A FastAPI-powered math problem solver using Chain-of-Thought (CoT) prompting with Groq's LLaMA models. Provides step-by-step solutions with verification.
-
-**Key Features:**
-- ➗ Multi-step math problem solving
-- 🧠 Chain-of-Thought prompting for accurate reasoning
-- 🔄 Automatic verification and sanity checks
-- 🎨 Neon dark-themed responsive UI
-- ⚡ Real-time API responses
-
-[View Task 2 README](Task_2/README.md) | [Demo](http://localhost:5500)
-
----
-
-### 3. 🔍 Code Review Agent (`Task_3/`)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
-[![Groq](https://img.shields.io/badge/Groq-API-orange.svg)](https://groq.com/)
-
-An AI-powered code review system for Python code using advanced reasoning agents. Analyzes code quality, suggests improvements, and provides detailed feedback.
-
-**Key Features:**
-- 📝 Automated Python code analysis
-- 🤖 Multi-round review conversations
-- 📊 AST-based static analysis
-- 🔄 File upload support
-- 📈 Detailed improvement suggestions
-
-[View Task 3 README](Task_3/README.md) | [Demo](http://localhost:8034)
+```
+GEN_AI/
+├── Hands_on_Lab/          # Hands-on lab exercises (Day 1–3, 4 tasks each)
+│   ├── Day_1/             #   Prompt engineering & reasoning agents
+│   ├── Day_2/             #   RAG systems & vector search
+│   └── Day_3/             #   LangGraph workflows & multi-agent systems
+│
+├── Assignment/            # Take-home assignments (Day 1–3, Day 4 upcoming)
+│   ├── Day_1/             #   Prompt library & debugging prompts
+│   ├── Day_2/             #   RAG system + comparison report
+│   └── Day_3/             #   (upcoming)
+│
+├── Class_Tasks/           # In-class exercises
+│   ├── Day_2/             #   CineAI — movie recommendation engine
+│   └── Day_3/             #   (upcoming)
+│
+├── .venv/                 # Python virtual environment
+├── .gitignore
+└── README.md              # ← You are here
+```
 
 ---
 
-### 4. ❓ Future Project (`Task_4/`)
-*Coming Soon - New AI Application*
+## 🗓️ Course Schedule & Status
 
-## 📋 Prerequisites
+| Day | Topic | Hands-on Lab | Assignment | Class Task |
+|-----|-------|:------------:|:----------:|:----------:|
+| **Day 1** | Prompt Engineering & Agents | ✅ 4 tasks | ✅ 2 docs | — |
+| **Day 2** | RAG & Vector Search | ✅ 4 tasks | ✅ 2 items | ✅ CineAI |
+| **Day 3** | LangGraph & Multi-Agent | ✅ 4 tasks | 🔲 Pending | 🔲 Pending |
+| **Day 4** | *(Upcoming)* | 🔲 Pending | 🔲 Pending | — |
+| **Day 5** | Capstone Project | 🔲 Pending | — | — |
 
-- **Python 3.8+** - All projects require modern Python
-- **Virtual Environment** - Isolated dependencies per project
-- **API Keys** - Required for Tasks 2 & 3 (Groq API)
-- **Web Browser** - For accessing the web interfaces
+---
 
-## 🚀 Installation
+## 🧪 Hands-on Lab
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd GEN_AI
-   ```
+### Day 1 — Prompt Engineering & Reasoning Agents
 
-2. **Set up virtual environment:**
-   ```bash
-   python -m venv .venv
-   # Windows
-   .\.venv\Scripts\activate
-   # macOS/Linux
-   source .venv/bin/activate
-   ```
+| # | Task | Description | Tech Stack | Port |
+|---|------|-------------|------------|------|
+| 1 | [Reasoning Agent Web App](Hands_on_Lab/Day_1/Task_1/) | ReAct agent with web search (DuckDuckGo) | Flask, Groq | 8501 |
+| 2 | [Math CoT Solver](Hands_on_Lab/Day_1/Task_2/) | Chain-of-Thought math problem solver | FastAPI, Groq | 5500 |
+| 3 | [Code Review Agent](Hands_on_Lab/Day_1/Task_3/) | AI-powered Python code analysis & review | FastAPI, Groq, AST | 8034 |
+| 4 | [Customer Support Chatbot](Hands_on_Lab/Day_1/Task_4/) | Three prompt patterns for support bots | Flask, Groq | 5000 |
 
-3. **Navigate to each task and follow its setup instructions**
+---
 
-## 💻 Usage
+### Day 2 — RAG & Vector Search
 
-Each task runs independently. Start by navigating to the task folder and following the README instructions:
+| # | Task | Description | Tech Stack | Port |
+|---|------|-------------|------------|------|
+| 1 | [PDF RAG System](Hands_on_Lab/Day_2/Task_1/) | Semantic search & Q&A over PDF documents | Flask, ChromaDB, Groq | 5000 |
+| 2 | [FAQ RAG Assistant](Hands_on_Lab/Day_2/Task_2/) | FAQ retrieval-augmented generation | Flask, ChromaDB, Groq | 5000 |
+| 3 | [Hybrid Search Engine (NEXUS)](Hands_on_Lab/Day_2/Task_3/) | Combined keyword + semantic search | Flask, ChromaDB, Groq | 5000 |
+| 4 | [Multi-Document RAG (NEXUS RAG)](Hands_on_Lab/Day_2/Task_4/) | Multi-file intelligence system with uploads | Flask, ChromaDB, Groq | 5000 |
+
+---
+
+### Day 3 — LangGraph & Multi-Agent Systems
+
+| # | Task | Description | Tech Stack | Port |
+|---|------|-------------|------------|------|
+| 1 | [LangGraph ETL Pipeline](Hands_on_Lab/Day_3/Task_1/) | Data extraction, transformation & loading | LangGraph, Jupyter | — |
+| 2 | [Sentiment Router](Hands_on_Lab/Day_3/Task_2/) | Sentiment-based routing with LangGraph | LangGraph, Flask, HuggingFace | 5000 |
+| 3 | [**HITL Content Moderation (NeuralGuard)**](Hands_on_Lab/Day_3/Task_3/) | Human-in-the-loop approval workflow | LangGraph, Flask, Groq | **5001** |
+| 4 | [**Multi-Agent Research Pipeline**](Hands_on_Lab/Day_3/Task_4/) | 3-agent system (researcher→writer→editor) | LangGraph, Flask, ChromaDB, Groq | **5000** |
+
+> **Day 3 Highlights:**
+> - **Task 3** uses LangGraph `interrupt_before` + `MemorySaver` for true HITL pause/resume
+> - **Task 4** orchestrates 3 agents via LangGraph state graph with ChromaDB vector retrieval
+
+---
+
+### Day 4 — *(Upcoming)*
+
+Hands-on lab tasks for Day 4 will be added here.
+
+---
+
+### Day 5 — Capstone Project *(Upcoming)*
+
+The capstone project will be added here.
+
+---
+
+## 📝 Assignments
+
+### Day 1 — Prompt Engineering
+
+| File | Description |
+|------|-------------|
+| [assignment1_prompt_library.docx](Assignment/Day_1/assignment1_prompt_library.docx) | Curated prompt library for various AI tasks |
+| [assignment2_debugging_prompts.docx](Assignment/Day_1/assignment2_debugging_prompts.docx) | Debugging prompts and analysis |
+
+### Day 2 — RAG Systems
+
+| Item | Description |
+|------|-------------|
+| [Manual RAG System](Assignment/Day_2/RAG_System_for_Product_Manuals/) | RAG pipeline for product manual Q&A |
+| [RAG vs Non-RAG Comparison](Assignment/Day_2/RAG_vs_NonRAG_Comparison_Report.docx) | Comparative analysis report |
+
+### Day 3 — *(Upcoming)*
+
+Assignment for Day 3 will be added here.
+
+### Day 4 — *(Upcoming)*
+
+Assignment for Day 4 will be added here.
+
+---
+
+## 🏫 Class Tasks
+
+### Day 2
+
+| Task | Description |
+|------|-------------|
+| [CineAI — Movie Recommendation Engine](Class_Tasks/Day_2/) | AI-powered movie recommendations with Groq + OMDb API |
+
+### Day 3 — *(Upcoming)*
+
+Class tasks for Day 3 will be added here.
+
+---
+
+## ⚡ Quick Start
+
+### Prerequisites
+
+- **Python 3.10+**
+- **Groq API key** — free at [console.groq.com](https://console.groq.com)
+
+### Setup
 
 ```bash
-# Example for Task 1
-cd Task_1
+# 1. Clone the repository
+git clone <repository-url>
+cd GEN_AI
+
+# 2. Create & activate virtual environment
+python -m venv .venv
+# Windows:
+.\.venv\Scripts\activate
+# macOS/Linux:
+source .venv/bin/activate
+
+# 3. Navigate to any task and run it
+cd Hands_on_Lab/Day_3/Task_4
 pip install -r requirements.txt
 python app.py
 ```
 
-Then open the provided localhost URL in your browser.
-
-## 🤝 Contributing
-
-Contributions are welcome! 🎉
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-Please ensure your code follows the existing style and includes appropriate tests.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Groq](https://groq.com/) for providing fast AI inference
-- [FastAPI](https://fastapi.tiangolo.com/) for the excellent web framework
-- [Flask](https://flask.palletsprojects.com/) for the lightweight web framework
-- Open source community for inspiration and tools
+Each task has its own `requirements.txt` and detailed README with setup instructions.
 
 ---
 
-*Built with ❤️ using Python and modern AI technologies*</content>
-<parameter name="filePath">L:\GEN_AI\README.md
+## 🔧 Tech Stack Overview
+
+| Technology | Used In | Purpose |
+|------------|---------|---------|
+| **LangGraph** | Day 3 | State-graph workflow orchestration |
+| **Groq API** | Day 1–3 | LLM inference (llama-3.1-8b-instant) |
+| **ChromaDB** | Day 2–3 | Vector storage & semantic retrieval |
+| **Flask** | Day 1–3 | Web backends & API servers |
+| **FastAPI** | Day 1 | High-performance API server |
+| **LangChain** | Day 2–3 | LLM framework & integrations |
+| **HuggingFace** | Day 3 | Sentiment analysis transformers |
+| **python-dotenv** | All | Environment variable management |
+
+---
+
+## 🙏 Acknowledgments
+
+- [Groq](https://groq.com/) — fast AI inference (free tier)
+- [LangGraph](https://langchain-ai.github.io/langgraph/) — workflow orchestration
+- [ChromaDB](https://www.trychroma.com/) — vector database
+- [Flask](https://flask.palletsprojects.com/) & [FastAPI](https://fastapi.tiangolo.com/) — web frameworks
+
+---
+
+*Built with ❤️ as part of a Generative AI course*
