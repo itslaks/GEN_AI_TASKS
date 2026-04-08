@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- Marked.js for markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Chart.js for beautiful visuals -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* ═══════════════════════════════════════════════════════════════
            DESIGN SYSTEM
@@ -441,6 +443,90 @@
         .tab-panel { display:none; }
         .tab-panel.active { display:block; }
 
+        /* ── Infographic specific ────────────────────────────────────── */
+        .infographic-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: #06060e;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--c-border);
+        }
+        /* ── Infographics 2.0 (Template Driven) ───────────────────────── */
+        .infographic-container {
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .info-header { text-align: center; margin-bottom: 1.5rem; }
+        .info-title { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+        .info-summary { font-size: 1.1rem; color: var(--c-text-2); max-width: 700px; margin: 0 auto; line-height: 1.5; }
+
+        .info-body {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 2rem;
+            flex: 1;
+        }
+
+        .info-chart-wrap {
+            background: rgba(255,255,255,.03);
+            border: 1px solid var(--c-border);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .info-chart-wrap canvas { max-width: 100% !important; max-height: 380px !important; }
+
+        .info-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .info-card {
+            background: rgba(255,255,255,.05);
+            border: 1px solid var(--c-border-hi);
+            padding: 1.25rem;
+            border-radius: var(--radius-md);
+            backdrop-filter: blur(10px);
+        }
+        .info-card h4 { color: var(--c-accent-2); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+        .info-card p { font-size: 0.95rem; color: var(--c-text); }
+
+        /* SKINS */
+        .skin-1 { background: linear-gradient(135deg, #06060e 0%, #0d0d1a 100%); border: 1px solid var(--c-cyan-dim); } /* Neon */
+        .skin-1 .info-title { background: linear-gradient(90deg, #00cec9, #6c5ce7); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .skin-2 { background: #f8f9fa; color: #1a1a1a; border: 1px solid #dee2e6; } /* Academic */
+        .skin-2 .info-title { color: #1a1a1a; }
+        .skin-2 .info-summary { color: #495057; }
+        .skin-2 .info-card { background: #fff; border-color: #e9ecef; box-shadow: 0 2px 8px rgba(0,0,0,.05); color: #1a1a1a; }
+        .skin-2 .info-chart-wrap { background: #fff; }
+
+        .skin-3 { background: linear-gradient(135deg, #1e1e38 0%, #0d0d1a 100%); border: 1px solid rgba(162,155,254,.3); } /* Professional */
+        .skin-3 .info-title { color: #fff; }
+
+        .skin-4 { background: linear-gradient(135deg, #002b24 0%, #000 100%); border: 1px solid var(--c-green-dim); } /* Emerald */
+        .skin-4 .info-title { color: var(--c-green); text-shadow: 0 0 20px var(--c-green-dim); }
+
+        .skin-5 { background: linear-gradient(135deg, #2d0a1a 0%, #000 100%); border: 1px solid var(--c-pink-dim); } /* Sunset */
+        .skin-5 .info-title { color: var(--c-pink); }
+        @keyframes fadeIn { from { opacity:0; transform:scale(.95); } to { opacity:1; transform:scale(1); } }
+
         /* ── Copy feedback ───────────────────────────────────────────── */
         .copied { color:var(--c-green) !important; border-color:var(--c-green) !important; }
 
@@ -477,7 +563,7 @@
             <span class="header__tag">🧠 LangGraph</span>
             <span class="header__tag">⚡ Groq API</span>
             <span class="header__tag">🗄️ ChromaDB</span>
-            <span class="header__tag">3 Agents</span>
+            <span class="header__tag">4 Agents</span>
         </div>
     </header>
 
@@ -562,6 +648,14 @@
                             <span class="pipeline__label">Editor</span>
                             <span class="pipeline__time" id="time-editor"></span>
                         </div>
+                        <div class="pipeline__connector" id="conn-3">
+                            <div class="pipeline__connector-fill"></div>
+                        </div>
+                        <div class="pipeline__node" id="node-designer" data-agent="designer">
+                            <div class="pipeline__circle">🎨</div>
+                            <span class="pipeline__label">Designer</span>
+                            <span class="pipeline__time" id="time-designer"></span>
+                        </div>
                     </div>
                     <div class="status-box" id="statusBox">
                         <span>💡 Enter a research topic to begin</span>
@@ -589,6 +683,7 @@
                 <!-- Tabs -->
                 <div class="tabs" id="reportTabs">
                     <button class="tab active" data-tab="final" id="tabFinal">📄 Final Report</button>
+                    <button class="tab" data-tab="infographic" id="tabInfographic">🎨 Infographic</button>
                     <button class="tab" data-tab="draft" id="tabDraft">📝 Draft</button>
                     <button class="tab" data-tab="citations" id="tabCitations">🔗 Citations <span id="citCount"></span></button>
                 </div>
@@ -603,6 +698,16 @@
                         <div class="empty">
                             <div class="empty__icon">📝</div>
                             <div class="empty__text">Your AI-generated research report will appear here</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Infographic -->
+                <div class="tab-panel" id="panel-infographic">
+                    <div class="report-content" id="infographicContent" style="padding:1rem; background:#06060e; display:flex; align-items:center; justify-content:center; min-height:400px;">
+                        <div class="empty">
+                            <div class="empty__icon">🎨</div>
+                            <div class="empty__text">The designer's visual infographic will appear here</div>
                         </div>
                     </div>
                 </div>
@@ -727,18 +832,18 @@ function toggleLogs() {
 
 // ── Pipeline UI ─────────────────────────────────────────────────
 function resetPipeline() {
-    ['researcher','writer','editor'].forEach(a => {
+    ['researcher','writer','editor','designer'].forEach(a => {
         $(`node-${a}`).className = 'pipeline__node';
         $(`time-${a}`).textContent = '';
     });
     $('conn-1').classList.remove('done');
     $('conn-2').classList.remove('done');
+    $('conn-3').classList.remove('done');
     $('statusBox').className = 'status-box';
     $('statusBox').innerHTML = '<span>💡 Enter a research topic to begin</span>';
 }
-
 function setAgentActive(agent) {
-    const order = ['researcher','writer','editor'];
+    const order = ['researcher','writer','editor','designer'];
     const idx = order.indexOf(agent);
     order.forEach((a, i) => {
         const node = $(`node-${a}`);
@@ -752,19 +857,40 @@ function setAgentActive(agent) {
     });
     if (idx >= 1) $('conn-1').classList.add('done');
     if (idx >= 2) $('conn-2').classList.add('done');
+    if (idx >= 3) $('conn-3').classList.add('done');
 }
 
 function setAllDone() {
-    ['researcher','writer','editor'].forEach(a => {
+    ['researcher','writer','editor','designer'].forEach(a => {
         $(`node-${a}`).className = 'pipeline__node done';
     });
-    $('conn-1').classList.add('done');
-    $('conn-2').classList.add('done');
+    ['conn-1','conn-2','conn-3'].forEach(c => $(c).classList.add('done'));
 }
 
 function setStatus(html, cls='') {
     $('statusBox').className = `status-box ${cls}`;
     $('statusBox').innerHTML = html;
+}
+
+// ── Live Timer Logic ────────────────────────────────────────────
+let liveTimerInterval = null;
+let currentAgentStartTime = 0;
+
+function startLiveTimer(agent) {
+    stopLiveTimer();
+    currentAgentStartTime = Date.now();
+    const timeEl = $(`time-${agent}`);
+    liveTimerInterval = setInterval(() => {
+        const elapsed = ((Date.now() - currentAgentStartTime) / 1000).toFixed(1);
+        timeEl.textContent = `${elapsed}s`;
+    }, 100);
+}
+
+function stopLiveTimer() {
+    if (liveTimerInterval) {
+        clearInterval(liveTimerInterval);
+        liveTimerInterval = null;
+    }
 }
 
 // ── Display functions ───────────────────────────────────────────
@@ -778,6 +904,118 @@ function displayReport(md) {
 function displayDraft(md) {
     currentDraft = md;
     $('draftContent').innerHTML = marked.parse(md);
+}
+
+let activeChart = null;
+
+function displayInfographic(data) {
+    if (!data) return;
+    
+    // Fallback for SVG if designer still returns it
+    if (typeof data === 'string' && data.trim().startsWith('<svg')) {
+        $('infographicContent').innerHTML = `<div class="infographic-container">${data}</div>`;
+        return;
+    }
+    
+    let info = data;
+    if (typeof data === 'string') {
+        try { info = JSON.parse(data); } catch(e) { 
+            console.error("JSON Parse fail", e); 
+            $('infographicContent').innerHTML = `<div class="empty">${esc(data)}</div>`;
+            return; 
+        }
+    }
+
+    const skinCls = `skin-${info.style_id || 1}`;
+    
+    $('infographicContent').innerHTML = `
+        <div class="infographic-container ${skinCls}">
+            <div class="info-header">
+                <h2 class="info-title">${esc(info.title)}</h2>
+                <p class="info-summary">${esc(info.summary)}</p>
+            </div>
+            <div class="info-body">
+                <div class="info-chart-wrap">
+                    <canvas id="infoChart"></canvas>
+                </div>
+                <div class="info-sidebar">
+                    ${(info.top_insights || []).map(ins => `
+                        <div class="info-card">
+                            <h4>Insight</h4>
+                            <p>${esc(ins)}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Auto-switch to infographic tab
+    setTimeout(() => {
+        if ($('tabFinal').classList.contains('active')) {
+            $('tabInfographic').click();
+        }
+    }, 1000);
+
+    // Initialize Chart.js
+    if (activeChart) activeChart.destroy();
+    
+    const ctx = document.getElementById('infoChart').getContext('2d');
+    const isDark = info.style_id !== 2;
+    const textColor = isDark ? '#e8e8f0' : '#1a1a1a';
+    const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    
+    const colors = getSkinColors(info.style_id);
+
+    activeChart = new Chart(ctx, {
+        type: info.chart_type || 'bar',
+        data: {
+            labels: info.chart_labels || [],
+            datasets: [{
+                label: info.title,
+                data: info.chart_values || [],
+                backgroundColor: colors.bg,
+                borderColor: colors.border,
+                borderWidth: 2,
+                borderRadius: 6,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: isDark ? '#1e1e38' : '#fff',
+                    titleColor: textColor,
+                    bodyColor: textColor,
+                    borderColor: colors.border,
+                    borderWidth: 1
+                }
+            },
+            scales: (info.chart_type === 'radar' || info.chart_type === 'doughnut' || info.chart_type === 'pie') ? {} : {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: gridColor },
+                    ticks: { color: textColor }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: textColor }
+                }
+            }
+        }
+    });
+}
+
+function getSkinColors(styleId) {
+    const s = parseInt(styleId);
+    if (s === 1) return { bg: 'rgba(0, 206, 201, 0.2)', border: '#00cec9' }; 
+    if (s === 2) return { bg: 'rgba(108, 92, 231, 0.2)', border: '#6c5ce7' }; 
+    if (s === 4) return { bg: 'rgba(0, 184, 148, 0.2)', border: '#00b894' }; 
+    if (s === 5) return { bg: 'rgba(253, 121, 168, 0.2)', border: '#fd79a8' }; 
+    return { bg: 'rgba(162, 155, 254, 0.2)', border: '#a29bfe' }; 
 }
 
 function displayNotes(notes) {
@@ -808,7 +1046,8 @@ function displayLogs(logs) {
     if (!logs || logs.length === 0) return;
     $('logCount').textContent = logs.length;
     $('logsBody').innerHTML = logs.map(l => {
-        const t = new Date(l.timestamp).toLocaleTimeString();
+        const d = new Date(l.timestamp);
+        const t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
         return `<div class="log-line">
             <span class="log-ts">${esc(t)}</span>
             <span class="log-node ${esc(l.node)}">${esc(l.node)}</span>
@@ -826,7 +1065,7 @@ function inferAgentFromLogs(logs) {
 
 // ── Timing from logs ────────────────────────────────────────────
 function extractTimings(logs) {
-    const agents = ['researcher','writer','editor'];
+    const agents = ['researcher','writer','editor','designer'];
     const timings = {};
     for (const a of agents) {
         const agentLogs = logs.filter(l => l.node === a);
@@ -886,28 +1125,15 @@ $('researchForm').addEventListener('submit', async e => {
 
     // Reset
     resetPipeline();
+    stopLiveTimer();
     $('notesCard').style.display = 'none';
     $('reportContent').innerHTML = '<div class="empty"><div class="empty__icon">⏳</div><div class="empty__text">Generating your report…</div></div>';
     $('draftContent').innerHTML = '<div class="empty"><div class="empty__icon">⏳</div><div class="empty__text">Waiting for draft…</div></div>';
+    $('infographicContent').innerHTML = '<div class="empty"><div class="empty__icon">⏳</div><div class="empty__text">Designing infographic…</div></div>';
     $('citationsContent').innerHTML = '';
     $('copyBtn').style.display = 'none';
     $('downloadBtn').style.display = 'none';
     $('citCount').textContent = '';
-
-    // Animate pipeline
-    setAgentActive('researcher');
-    setStatus('<span class="spinner-sm"></span> <span>Research agent is gathering data…</span>', 'running');
-
-    // Simulate agent progression during the API call
-    const agentTimers = [];
-    agentTimers.push(setTimeout(() => {
-        setAgentActive('writer');
-        setStatus('<span class="spinner-sm"></span> <span>Writer agent is drafting the report…</span>', 'running');
-    }, 8000));
-    agentTimers.push(setTimeout(() => {
-        setAgentActive('editor');
-        setStatus('<span class="spinner-sm"></span> <span>Editor agent is polishing the final version…</span>', 'running');
-    }, 18000));
 
     try {
         const resp = await fetch('/api/run', {
@@ -916,54 +1142,94 @@ $('researchForm').addEventListener('submit', async e => {
             body: JSON.stringify({ query, audience, length }),
         });
 
-        // Clear simulated timers
-        agentTimers.forEach(t => clearTimeout(t));
+        const startData = await resp.json();
+        if (!resp.ok) throw new Error(startData.message || startData.error || 'Request failed');
 
-        const data = await resp.json();
+        const runId = startData.run_id;
+        pollStatus(runId);
 
-        if (!resp.ok) {
-            throw new Error(data.message || data.error || 'Request failed');
-        }
+    } catch (err) {
+        setStatus(`❌ ${esc(err.message)}`, 'error');
+        toast(err.message, 'error');
+        $('reportContent').innerHTML = `<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__text">${esc(err.message)}</div></div>`;
+        finishUI();
+    }
+});
 
-        // All done
-        setAllDone();
-        setStatus('✅ Research pipeline completed successfully!', 'success');
+let lastActiveAgent = null;
 
-        // Timings from logs
-        if (data.logs) {
+async function pollStatus(runId) {
+    try {
+        const r = await fetch(`/api/status/${runId}`);
+        const data = await r.json();
+
+        if (data.status === 'completed') {
+            stopLiveTimer();
+            setAllDone();
+            setStatus('✅ Research pipeline completed successfully!', 'success');
+            
+            const res = data.results;
+            if (res.final_report) displayReport(res.final_report);
+            if (res.infographic_data) displayInfographic(res.infographic_data);
+            else if (res.infographic_svg) displayInfographic(res.infographic_svg);
+
+            if (res.draft_report) displayDraft(res.draft_report);
+            if (res.research_notes) displayNotes(res.research_notes);
+            if (res.citations) displayCitations(res.citations);
+            if (data.logs) displayLogs(data.logs);
+
+            // Correct timings from finalized logs
             const timings = extractTimings(data.logs);
             for (const [agent, t] of Object.entries(timings)) {
                 $(`time-${agent}`).textContent = t;
             }
+
+            $('logsWrap').classList.add('open');
+            $('logsArrow').classList.add('open');
+            toast('Research report generated!', 'success');
+            finishUI();
+            return;
         }
 
-        // Display results
-        if (data.final_report) displayReport(data.final_report);
-        if (data.draft_report) displayDraft(data.draft_report);
-        if (data.research_notes) displayNotes(data.research_notes);
-        if (data.citations) displayCitations(data.citations);
+        if (data.status === 'failed') {
+            stopLiveTimer();
+            setStatus(`❌ Pipeline failed: ${data.error}`, 'error');
+            finishUI();
+            return;
+        }
+
+        // Handle Active Agent changes
+        if (data.current_agent) {
+            if (data.current_agent !== lastActiveAgent) {
+                lastActiveAgent = data.current_agent;
+                setAgentActive(data.current_agent);
+                startLiveTimer(data.current_agent);
+                setStatus(`<span class="spinner-sm"></span> <span>Agent <strong>${data.current_agent}</strong> is working…</span>`, 'running');
+            }
+        }
+
         if (data.logs) displayLogs(data.logs);
 
-        // Open logs
-        $('logsWrap').classList.add('open');
-        $('logsArrow').classList.add('open');
-
-        toast('Research report generated!', 'success');
+        // Keep polling - Slower frequency (2s) to avoid 429
+        setTimeout(() => pollStatus(runId), 2000);
 
     } catch (err) {
-        // Clear simulated timers
-        agentTimers.forEach(t => clearTimeout(t));
-        setStatus(`❌ ${esc(err.message)}`, 'error');
-        toast(err.message, 'error');
-        $('reportContent').innerHTML = `<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__text">${esc(err.message)}</div></div>`;
-    } finally {
-        isRunning = false;
-        sp.remove();
-        btn.disabled = false;
-        $('btnIcon').textContent = '🚀';
-        $('btnText').textContent = 'Generate Report';
+        console.error('Polling error:', err);
+        // Exponential backoff on error
+        setTimeout(() => pollStatus(runId), 4000);
     }
-});
+}
+
+function finishUI() {
+    isRunning = false;
+    const btn = $('submitBtn');
+    btn.disabled = false;
+    const sp = btn.querySelector('.spinner-sm');
+    if (sp) sp.remove();
+    $('btnIcon').textContent = '🚀';
+    $('btnText').textContent = 'Generate Report';
+    lastActiveAgent = null;
+}
 
 // ── Prevent form resubmission ───────────────────────────────────
 if (window.history.replaceState) {

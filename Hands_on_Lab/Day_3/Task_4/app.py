@@ -19,6 +19,12 @@ from functools import wraps
 from dotenv import load_dotenv
 load_dotenv()
 
+# LangChain / LangSmith Tracing
+os.environ["LANGCHAIN_TRACING_V2"] = os.getenv("LANGCHAIN_TRACING_V2", "false")
+os.environ["LANGCHAIN_ENDPOINT"] = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
+os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY", "")
+os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", "Research-Pipeline")
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import chromadb
@@ -160,7 +166,7 @@ def get_llm():
                 model_name="llama-3.1-8b-instant",
                 temperature=0.7,
                 max_tokens=2048,
-            )
+            ).bind(response_format={"type": "json_object"})
         except Exception as e:
             logger.error(f"LLM init failed: {e}")
     return None
@@ -179,6 +185,7 @@ class AgentState(TypedDict):
     citations: List[str]
     draft_report: str
     final_report: str
+    infographic_data: dict  # New: Structured JSON for Chart.js + Templates
     logs: List[Dict[str, Any]]
     run_id: str
     collection_name: str
@@ -190,7 +197,7 @@ MAX_RUNS = 200
 
 
 def add_log(state: AgentState, node: str, message: str, **kw):
-    entry = {"timestamp": datetime.utcnow().isoformat(), "node": node, "message": message, **kw}
+    entry = {"timestamp": datetime.now().isoformat(), "node": node, "message": message, **kw}
     state["logs"].append(entry)
     logger.info(f"[{node}] {message}")
     # Update progress in active_runs
@@ -362,7 +369,74 @@ def editor_node(state: AgentState) -> AgentState:
         add_log(state, "editor", "⚠ Skipped editing (fallback)")
 
     state["final_report"] = final
-    add_log(state, "editor", "🎉 Pipeline finished!")
+    return state
+
+
+def infographic_node(state: AgentState) -> AgentState:
+    """Designer Agent – generates structured JSON for Chart.js and templates."""
+    t0 = time.time()
+    add_log(state, "designer", "🎨 Designing structured infographic and charts…")
+
+    report = state["final_report"]
+    query = state["query"]
+
+    if llm and report:
+        try:
+            # HYPER-DESIGNER: Creative Director Prompt for Template-Driven Charts
+            prompt = (
+                "You are a visionary Creative Director and Data Analyst. "
+                f"Design a high-end data visualization for the research: \"{query}\".\n\n"
+                f"Context: {report[:1500]}\n\n"
+                "OUTCOME: Return a JSON object for a professional Chart.js infographic.\n\n"
+                "JSON SCHEMA:\n"
+                "{\n"
+                "  \"style_id\": 1 to 5 (1:Neon, 2:Academic, 3:Professional, 4:Emerald, 5:Sunset),\n"
+                "  \"title\": \"Catchy Headline\",\n"
+                "  \"summary\": \"1-2 sentence high-level takeaway\",\n"
+                "  \"chart_type\": \"bar\", \"line\", \"doughnut\", \"radar\", or \"polarArea\",\n"
+                "  \"chart_labels\": [\"Label1\", \"Label2\", ...],\n"
+                "  \"chart_values\": [number1, number2, ...],\n"
+                "  \"top_insights\": [\"Key data point 1\", \"Key data point 2\", \"Key data point 3\"]\n"
+                "}\n\n"
+                "RULES:\n"
+                "- Extract 3-6 meaningful numeric data points from the research for the chart.\n"
+                "- Ensure the style_id matches the tone (e.g., 2 for academic, 1 for tech/neon).\n"
+                "- Return ONLY the raw JSON object. No markdown, no prose."
+            )
+            resp = llm.invoke([HumanMessage(content=prompt)])
+            raw_content = resp.content.strip()
+            
+            # Robust JSON parsing with fallback
+            clean_json = raw_content
+            if "```json" in clean_json:
+                clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+            elif "```" in clean_json:
+                clean_json = clean_json.split("```")[1].split("```")[0].strip()
+            
+            # Remove any trailing commas or leading SVG smog (last-ditch effort)
+            clean_json = re.sub(r'(?i)<svg.*?</svg>', '', clean_json, flags=re.DOTALL).strip()
+            
+            try:
+                state["infographic_data"] = json.loads(clean_json)
+            except json.JSONDecodeError:
+                # If JSON fails, try to find the first { and last }
+                matches = re.findall(r'\{.*\}', clean_json, re.DOTALL)
+                if matches:
+                    state["infographic_data"] = json.loads(matches[-1])
+                else:
+                    raise ValueError("Target JSON not found in LLM response")
+            add_log(state, "designer", f"✅ Infographic design complete ({int((time.time()-t0)*1000)}ms)")
+        except Exception as e:
+            add_log(state, "designer", f"Designer error: {e}", level="error")
+            state["infographic_data"] = {
+                "style_id": 3, "title": "Overview", "summary": "Data visualization currently unavailable.", 
+                "chart_type": "bar", "chart_labels": ["Error"], "chart_values": [0], "top_insights": [str(e)]
+            }
+    else:
+        state["infographic_data"] = {}
+        add_log(state, "designer", "⚠ Skipped infographic (fallback)")
+
+    add_log(state, "designer", "🎉 Pipeline finished!")
     return state
 
 
@@ -374,10 +448,12 @@ def build_graph():
     wf.add_node("researcher", researcher_node)
     wf.add_node("writer", writer_node)
     wf.add_node("editor", editor_node)
+    wf.add_node("designer", infographic_node)
     wf.set_entry_point("researcher")
     wf.add_edge("researcher", "writer")
     wf.add_edge("writer", "editor")
-    wf.add_edge("editor", END)
+    wf.add_edge("editor", "designer")
+    wf.add_edge("designer", END)
     return wf.compile()
 
 
@@ -442,6 +518,7 @@ def run_pipeline():
         "citations": [],
         "draft_report": "",
         "final_report": "",
+        "infographic_data": {},
         "logs": [],
         "run_id": run_id,
         "collection_name": col_name,
@@ -455,27 +532,27 @@ def run_pipeline():
         "state": initial_state,
     }
 
-    try:
-        final = graph.invoke(initial_state)
-        active_runs[run_id].update({
-            "status": "completed",
-            "completed_at": time.time(),
-            "state": final,
-        })
-        return jsonify({
-            "run_id": run_id,
-            "status": "completed",
-            "final_report": final.get("final_report", ""),
-            "draft_report": final.get("draft_report", ""),
-            "research_notes": final.get("research_notes", []),
-            "citations": final.get("citations", []),
-            "logs": final.get("logs", []),
-        })
-    except Exception as e:
-        logger.exception(f"Pipeline failed for {run_id}")
-        active_runs[run_id]["status"] = "failed"
-        active_runs[run_id]["error"] = str(e)
-        return jsonify({"error": "Pipeline failed", "message": str(e), "run_id": run_id}), 500
+    def execute_async():
+        try:
+            final = graph.invoke(initial_state)
+            active_runs[run_id].update({
+                "status": "completed",
+                "completed_at": time.time(),
+                "state": final,
+            })
+        except Exception as e:
+            logger.exception(f"Pipeline failed for {run_id}")
+            active_runs[run_id]["status"] = "failed"
+            active_runs[run_id]["error"] = str(e)
+
+    # Start in background thread
+    threading.Thread(target=execute_async, daemon=True).start()
+
+    return jsonify({
+        "run_id": run_id,
+        "status": "running",
+        "message": "Pipeline started in background"
+    })
 
 
 @app.route("/api/status/<run_id>")
@@ -495,6 +572,14 @@ def get_status(run_id):
         "status": run.get("status"),
         "current_agent": run.get("current_agent"),
         "logs": run.get("logs", []),
+        # If completed, return the results
+        "results": {
+            "final_report": run["state"].get("final_report", ""),
+            "infographic_data": run["state"].get("infographic_data", {}),
+            "draft_report": run["state"].get("draft_report", ""),
+            "research_notes": run["state"].get("research_notes", []),
+            "citations": run["state"].get("citations", []),
+        } if run.get("status") == "completed" else None
     })
 
 
