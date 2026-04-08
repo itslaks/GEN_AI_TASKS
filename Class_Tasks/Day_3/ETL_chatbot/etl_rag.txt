@@ -1,0 +1,47 @@
+ETL PIPELINE FUNDAMENTALS
+ETL stands for Extract, Transform, Load. It is the core pattern for moving data from source systems to analytical targets. Extract reads raw data from a source (CSV, database, API). Transform cleans, normalises, and enriches the data. Load writes the result to a destination such as a data warehouse, data lake, or flat file.
+
+LANGGRAPH FOR ETL ORCHESTRATION
+LangGraph is a graph-based workflow library built on LangChain. It models pipelines as directed graphs of nodes. Each node is a Python function that receives and returns a typed state object. Edges define execution order. For sequential ETL, nodes are chained extract → transform → load with no branching. The StateGraph class compiles the graph into a runnable. LangGraph supports conditional edges, retries, and parallel branches for more complex workflows.
+
+PANDAS DATA CLEANING PATTERNS
+Pandas is the standard Python library for tabular data manipulation. Key operations: read_csv / read_parquet for ingestion; DataFrame.copy() before mutation to avoid side effects; str.strip() and str.lower() for string normalisation; rename(columns=...) or column reassignment for snake_case headers; pd.to_numeric(errors='coerce') for safe numeric coercion; fillna(median()) for numeric imputation; fillna('unknown') for categorical imputation; drop_duplicates() for deduplication. Always profile data with df.info(), df.describe(), and df.isna().sum() before building transformations.
+
+COLUMN NORMALISATION
+Column names should be lowercased, stripped of leading/trailing whitespace, and converted to snake_case. Example: "First Name " → "first_name". Use regex replacement: str.replace(r'[\s\-]+', '_', regex=True). Remove non-word characters after that pass. Consistent column names prevent KeyError issues downstream.
+
+TYPE COERCION AND SAFE HANDLING
+Always use errors='coerce' in pd.to_numeric and pd.to_datetime to convert unparseable values to NaN instead of raising exceptions. After coercion, inspect NaN counts to detect systematic parsing failures. Coerce only columns with high numeric hit rates (e.g., >50%) to avoid false positives on mixed-type columns.
+
+MISSING VALUE HANDLING STRATEGIES
+Common strategies: (1) Drop rows with nulls when data is plentiful and nulls are random. (2) Median/mean imputation for numeric columns — robust to outliers. (3) Mode imputation for categorical columns. (4) Forward-fill or backward-fill for time-series data. (5) Sentinel values such as 'unknown' or -1 when downstream systems require non-null. Always document your strategy in comments. Missing-value handling assumptions must be explicit.
+
+DUPLICATE DETECTION AND REMOVAL
+Duplicates arise from source system bugs, multiple ingestion runs, or joins. Use df.duplicated() to count exact duplicates. Use df.duplicated(subset=['id']) for key-based duplicates. Decide keep='first' or keep='last' based on recency requirements. Log the count removed for auditability. For fuzzy duplicates, consider record linkage libraries.
+
+DATA QUALITY CHECKS
+Three fundamental DQ checks: (1) Non-null constraint: assert df[col].isna().sum() == 0. (2) Uniqueness constraint: assert ~df[col].duplicated().any(). (3) Range check: assert (df[col] >= 0).all() for non-negative columns. Additional checks: referential integrity, regex format checks (email, phone), enum membership. Surface failures as structured warnings or errors, not silently dropped data.
+
+OBSERVABILITY IN DATA PIPELINES
+Log at each pipeline stage: rows read, rows written, null counts, duplicate counts, DQ failures. Emit a metrics artifact (JSON) after load. Track latency per step. Raise structured warnings for soft failures (e.g., unexpected negative values). Use Python's logging module with timestamps. In production, ship logs to a centralised system (Datadog, CloudWatch, etc.).
+
+PARQUET VS CSV
+Parquet is a columnar binary format. It is 5–10x faster to read than CSV for analytical queries, supports schema embedding, and has efficient compression. Use Parquet for large datasets and analytical workloads. Use CSV for human-readable interchange and small datasets. Pandas writes Parquet via pyarrow: df.to_parquet('path.parquet', index=False).
+
+GROQ API
+Groq is an LLM inference API offering very fast token generation. Use the groq Python package: from groq import Groq. Instantiate with Groq(api_key=...). Call client.chat.completions.create(model=..., messages=[...]). Free tier is available. The model llama-3.1-8b-instant offers fast, cost-effective responses for conversational tasks.
+
+RETRIEVAL-AUGMENTED GENERATION (RAG)
+RAG grounds LLM responses in a local knowledge base to reduce hallucination. Simple RAG: split knowledge text into chunks, score each chunk by keyword overlap with the user query, inject top-k chunks into the system prompt. More advanced RAG uses embedding vectors and cosine similarity for semantic retrieval. For small knowledge bases (<1000 chunks), keyword overlap is fast and interpretable.
+
+LANGGRAPH STATE MODEL
+Define a TypedDict for state. Fields flow through every node. Nodes return the mutated state. Use Optional types for fields populated later in the pipeline. Example fields: raw_df (DataFrame after extract), cleaned_df (DataFrame after transform), source_path (str), dest_path (str), metrics (dict), errors (list[str]), warnings (list[str]). Never share mutable objects between parallel nodes without copying.
+
+ETL ROBUSTNESS PATTERNS
+Always handle: FileNotFoundError when the source path does not exist; pd.errors.EmptyDataError for zero-byte CSVs; unexpected columns by checking df.columns against a schema; type mismatch by using safe coercion. Fail fast with clear messages: raise ValueError(f"Column 'id' not found. Got: {list(df.columns)}"). Skip downstream nodes when upstream errors exist to avoid cascading failures.
+
+DATA PIPELINE METRICS ARTIFACT
+After load, emit a JSON file containing: raw_row_count, cleaned_row_count, duplicates_removed, nulls_imputed, null_counts_per_column (dict), schema (column→dtype dict), source_path, dest_path, pipeline_timestamp. This artifact enables data lineage tracking and SLA monitoring.
+
+BEST PRACTICES SUMMARY
+1. Validate inputs before processing. 2. Make assumptions explicit in comments. 3. Log every pipeline stage. 4. Emit a metrics artifact. 5. Separate concerns: extract reads only, transform modifies only, load writes only. 6. Use typed state objects. 7. Handle errors gracefully and surface them clearly. 8. Test with edge cases: empty files, all-null columns, duplicate-only files. 9. Keep transformations idempotent where possible. 10. Document your data quality rules.

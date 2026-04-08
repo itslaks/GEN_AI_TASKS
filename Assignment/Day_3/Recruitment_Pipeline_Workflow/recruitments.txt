@@ -1,0 +1,38 @@
+{
+  "job_id": "job_senior_ml_engineer_001",
+  "job_description": "Senior ML Engineer at TechCorp. Requirements: 5+ years Python, strong experience with PyTorch or TensorFlow, MLOps (MLflow, Kubeflow), distributed training, REST API design, Docker/Kubernetes. Nice to have: LLM fine-tuning, Ray, Spark. Team player, strong communicator.",
+  "resumes": [
+    {
+      "candidate_id": "cand_001",
+      "name": "Arjun Patel",
+      "text": "Arjun Patel | arjun@email.com | LinkedIn: linkedin.com/in/arjunpatel\n\nSUMMARY\n7 years Python developer with 5 years in ML engineering. Led MLOps platform at FinanceAI Inc.\n\nEXPERIENCE\nSr. ML Engineer, FinanceAI Inc. (2020–2024)\n- Built distributed training pipelines using PyTorch + Kubernetes, 3x throughput improvement\n- Implemented MLflow for experiment tracking; reduced model deployment time by 60%\n- Designed REST APIs serving 2M daily predictions with 99.9% uptime\n- Fine-tuned LLaMA-2 for internal document summarization\n\nML Engineer, DataStartup (2018–2020)\n- TensorFlow models for fraud detection; AUC 0.97\n- Docker-based microservices architecture\n\nEDUCATION\nM.S. Computer Science, IIT Bombay, 2017\n\nSKILLS\nPython, PyTorch, TensorFlow, MLflow, Kubeflow, Kubernetes, Docker, Ray, REST APIs, LLM fine-tuning, Spark"
+    },
+    {
+      "candidate_id": "cand_002",
+      "name": "Sofia Marchetti",
+      "text": "Sofia Marchetti | sofia.m@gmail.com\n\nEXPERIENCE\nData Scientist, RetailCo (2021–2024)\n- Python and scikit-learn for demand forecasting\n- Deployed models using Flask APIs\n- Used Git, Jupyter Notebooks\n\nJunior Data Analyst, Agency (2019–2021)\n- Excel, SQL, basic Python\n\nEDUCATION\nB.S. Statistics, University of Milan, 2019\n\nSKILLS\nPython, scikit-learn, pandas, SQL, Flask, basic Docker\n\nNOTE: No PyTorch/TensorFlow experience. No Kubernetes. 3 years Python total."
+    },
+    {
+      "candidate_id": "cand_003",
+      "name": "Marcus Johnson",
+      "text": "Marcus Johnson | marcus@techmail.com | GitHub: github.com/marcusj\n\nSUMMARY\n6 years in ML with strong MLOps background. Open source contributor to Kubeflow.\n\nEXPERIENCE\nMLOps Engineer, CloudML Systems (2019–2024)\n- Kubeflow pipelines for 50+ production models\n- PyTorch distributed training on 128-GPU clusters\n- Built internal ML platform serving 500 data scientists\n- Kubernetes, Helm, Terraform for infra management\n- LLM deployment: vLLM, TGI, fine-tuning with LoRA\n\nML Research Engineer, University Lab (2018–2019)\n- Published 2 papers on efficient transformers\n\nEDUCATION\nPh.D. Computer Science (ML), Georgia Tech, 2018\n\nSKILLS\nPython, PyTorch, TensorFlow, Kubeflow, MLflow, Kubernetes, Docker, Ray, Spark, REST APIs, LLM fine-tuning, LoRA, vLLM"
+    },
+    {
+      "candidate_id": "cand_004",
+      "name": "Priya Sharma",
+      "text": "Priya Sharma\n\nI am a developer with some machine learning experience. I know Python and have done some deep learning projects. Currently learning Docker. Interested in ML engineering roles.\n\nProjects: Image classifier with CNN, sentiment analysis with BERT.\nEducation: B.Tech CSE 2022."
+    }
+  ],
+  "interview_notes": [
+    {
+      "candidate_id": "cand_001",
+      "notes": "Strong technical depth. Explained distributed training bottlenecks clearly. Asked great questions about our tech stack. Slight hesitation on system design at scale. Cultural fit excellent — collaborative, humble. Would work well with existing team.",
+      "raw_input": "interviewer_notes_cand_001"
+    },
+    {
+      "candidate_id": "cand_003",
+      "notes": "Exceptional candidate. PhD-level depth without being condescending. Walked us through a Kubeflow pipeline architecture live — impressive. Very strong communicator. Open source contributions show initiative. Top candidate in pipeline.",
+      "raw_input": "interviewer_notes_cand_003"
+    }
+  ]
+}

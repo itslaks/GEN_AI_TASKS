@@ -1,0 +1,9 @@
+flask
+python-dotenv
+groq
+langgraph
+pandas
+pyarrow
+openpyxl
+lxml
+fastavro

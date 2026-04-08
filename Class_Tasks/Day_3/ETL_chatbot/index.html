@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DataFlow AI — ETL Chatbot</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-overlay:    rgba(0,0,0,.55);
+    --glass:         rgba(10,10,18,.65);
+    --glass-light:   rgba(255,255,255,.06);
+    --glass-hover:   rgba(255,255,255,.09);
+    --border:        rgba(255,255,255,.13);
+    --border-glow:   rgba(99,102,241,.4);
+    --text-main:     #f0f0f0;
+    --text-muted:    #9ca3af;
+    --text-dim:      #6b7280;
+    --accent:        #6366f1;
+    --accent-2:      #8b5cf6;
+    --accent-glow:   rgba(99,102,241,.3);
+    --user-bubble:   rgba(99,102,241,.22);
+    --bot-bubble:    rgba(255,255,255,.055);
+    --send-active:   #6366f1;
+    --send-disabled: rgba(60,60,90,.6);
+    --chip-bg:       rgba(0,0,0,.45);
+    --chip-border:   rgba(255,255,255,.13);
+    --chip-hover:    rgba(75,85,99,.65);
+    --scrollbar:     rgba(255,255,255,.07);
+    --green:         #22c55e;
+    --amber:         #f59e0b;
+    --red:           #ef4444;
+    --blue:          #3b82f6;
+    --teal:          #14b8a6;
+    --radius-xl:     1rem;
+    --radius-full:   9999px;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  html, body { height: 100%; font-family: var(--font); color: var(--text-main); background: #000; overflow-x: hidden; }
+
+  body {
+    background-image: url('https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/ruixen_moon_2.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at 50% 30%, rgba(99,102,241,.07) 0%, transparent 60%),
+                radial-gradient(ellipse at center, transparent 25%, rgba(0,0,0,.6) 100%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── App shell ─────────────────────────────────────────────────────────── */
+  #app {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center;
+    height: 100vh; width: 100%; overflow: hidden;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────────────────── */
+  header {
+    width: 100%; max-width: 860px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.1rem 1.5rem .6rem;
+    flex-shrink: 0;
+    transition: padding .4s ease;
+  }
+  #app.chat-active header { padding-top: .7rem; padding-bottom: .4rem; }
+
+  .logo {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .92rem; font-weight: 600; letter-spacing: .02em;
+    color: var(--text-main); opacity: .9;
+  }
+  .logo svg { opacity: .8; }
+
+  .badge {
+    font-size: .62rem; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--accent);
+    background: rgba(99,102,241,.12); border: 1px solid rgba(99,102,241,.28);
+    border-radius: var(--radius-full); padding: .14rem .52rem;
+  }
+
+  /* ── Hero section ───────────────────────────────────────────────────────── */
+  #hero {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 0 1.5rem;
+    transition: all .55s cubic-bezier(.4,0,.2,1);
+    will-change: opacity, transform;
+    pointer-events: auto;
+  }
+  #hero.collapsing {
+    opacity: 0;
+    transform: translateY(-24px) scale(.97);
+    pointer-events: none;
+    flex: 0;
+    max-height: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+  #hero h1 {
+    font-size: clamp(1.9rem, 4.5vw, 3rem); font-weight: 700;
+    letter-spacing: -.025em; color: #fff;
+    text-shadow: 0 2px 32px rgba(0,0,0,.75);
+    background: linear-gradient(135deg, #fff 40%, rgba(165,163,255,.85));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  #hero p { margin-top: .7rem; font-size: 1rem; color: var(--text-muted); max-width: 460px; line-height: 1.6; }
+
+  .hero-pills {
+    display: flex; gap: .5rem; margin-top: 1.4rem; flex-wrap: wrap; justify-content: center;
+  }
+  .hero-pill {
+    font-size: .7rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--text-muted); background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1); border-radius: var(--radius-full);
+    padding: .3rem .7rem;
+  }
+
+  /* ── Chat area ──────────────────────────────────────────────────────────── */
+  #chat-area {
+    flex: 1; width: 100%; max-width: 860px;
+    overflow-y: auto; overflow-x: hidden;
+    padding: .5rem 1.5rem .75rem;
+    scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent;
+    display: none;
+    scroll-behavior: smooth;
+  }
+  #chat-area::-webkit-scrollbar { width: 3px; }
+  #chat-area::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+  #chat-area.visible { display: block; }
+
+  /* ── Message rows ────────────────────────────────────────────────────────── */
+  .msg-row {
+    display: flex; gap: .6rem; margin-bottom: .9rem;
+    animation: msgIn .3s cubic-bezier(.34,1.2,.64,1) both;
+  }
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(14px) scale(.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .msg-row.user { flex-direction: row-reverse; }
+
+  .avatar {
+    width: 28px; height: 28px; border-radius: var(--radius-full);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: .65rem; font-weight: 700; margin-top: .2rem;
+  }
+  .avatar.bot  { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: 0 0 12px var(--accent-glow); }
+  .avatar.user-av { background: rgba(255,255,255,.1); border: 1px solid var(--border); color: var(--text-muted); }
+
+  .bubble {
+    max-width: 74%; padding: .65rem .95rem; border-radius: var(--radius-xl);
+    font-size: .865rem; line-height: 1.65; white-space: pre-wrap; word-break: break-word;
+    position: relative;
+  }
+  .msg-row.bot .bubble {
+    background: var(--bot-bubble); border: 1px solid rgba(255,255,255,.1);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-bottom-left-radius: .3rem;
+  }
+  .msg-row.user .bubble {
+    background: var(--user-bubble); border: 1px solid rgba(99,102,241,.28);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom-right-radius: .3rem; color: #fff;
+  }
+
+  .meta { font-size: .62rem; color: var(--text-dim); margin-top: .22rem; }
+  .msg-row.bot .meta { text-align: left; }
+  .msg-row.user .meta { text-align: right; }
+
+  .typing-dots span {
+    display: inline-block; width: 5px; height: 5px;
+    background: var(--text-muted); border-radius: 50%;
+    margin: 0 1.5px; animation: blink 1.3s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: .22s; }
+  .typing-dots span:nth-child(3) { animation-delay: .44s; }
+  @keyframes blink {
+    0%, 80%, 100% { opacity: .2; transform: scale(.8); }
+    40%           { opacity: 1; transform: scale(1.1); }
+  }
+
+  /* ── Bottom docking zone ─────────────────────────────────────────────────── */
+  #bottom {
+    width: 100%; max-width: 860px;
+    padding: 0 1.5rem 1.75rem;
+    flex-shrink: 0;
+    transition: padding .4s ease;
+  }
+
+  #input-box {
+    position: relative;
+    background: var(--glass);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border); border-radius: var(--radius-xl);
+    transition: border-color .25s, box-shadow .25s, transform .25s;
+    transform-origin: bottom center;
+  }
+  #input-box:focus-within {
+    border-color: rgba(99,102,241,.55);
+    box-shadow: 0 0 0 3px var(--accent-glow), 0 8px 32px rgba(0,0,0,.3);
+  }
+  #app.chat-active #input-box {
+    box-shadow: 0 -4px 24px rgba(0,0,0,.25);
+  }
+
+  #msg-input {
+    width: 100%; min-height: 52px; max-height: 160px; resize: none;
+    border: none; background: transparent; color: var(--text-main);
+    font-family: var(--font); font-size: .875rem; line-height: 1.55;
+    padding: .85rem 1rem .4rem; outline: none; overflow-y: hidden;
+  }
+  #msg-input::placeholder { color: var(--text-dim); }
+
+  .input-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .35rem .6rem .5rem;
+  }
+  .input-left { display: flex; align-items: center; gap: .2rem; }
+
+  .icon-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border: none; background: transparent;
+    cursor: pointer; border-radius: .45rem; color: var(--text-muted);
+    transition: background .2s, color .2s;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,.08); color: #fff; }
+
+  #send-btn {
+    width: 32px; height: 32px; border: none; border-radius: .45rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--send-disabled); color: var(--text-dim);
+    transition: background .2s, color .2s, transform .15s, box-shadow .2s;
+  }
+  #send-btn.active {
+    background: var(--send-active); color: #fff;
+    box-shadow: 0 0 14px var(--accent-glow);
+  }
+  #send-btn.active:hover { transform: scale(1.1); }
+  #send-btn:disabled { cursor: not-allowed; }
+
+  /* ── Quick chips ─────────────────────────────────────────────────────────── */
+  #chips {
+    display: flex; flex-wrap: wrap; gap: .45rem; justify-content: center;
+    margin-top: .9rem;
+    transition: opacity .35s ease, max-height .4s ease;
+    max-height: 120px; overflow: hidden;
+  }
+  #app.chat-active #chips { max-height: 0; opacity: 0; pointer-events: none; margin-top: 0; }
+
+  .chip {
+    display: flex; align-items: center; gap: .35rem;
+    padding: .3rem .75rem; background: var(--chip-bg);
+    border: 1px solid var(--chip-border); border-radius: var(--radius-full);
+    color: var(--text-muted); font-size: .72rem; cursor: pointer;
+    transition: background .2s, color .2s, border-color .2s, transform .15s;
+    backdrop-filter: blur(6px);
+  }
+  .chip:hover { background: var(--chip-hover); color: #fff; border-color: rgba(255,255,255,.2); transform: translateY(-1px); }
+
+  /* ── Error toast ─────────────────────────────────────────────────────────── */
+  #error-toast {
+    display: none; margin: 0 1.5rem .6rem; max-width: 860px; align-self: center;
+    width: calc(100% - 3rem);
+    background: rgba(220,38,38,.13); border: 1px solid rgba(220,38,38,.3);
+    border-radius: .75rem; padding: .55rem .95rem; font-size: .78rem; color: #fca5a5;
+    animation: msgIn .25s ease both;
+  }
+  #error-toast.visible { display: block; }
+
+  /* ── FAB upload ──────────────────────────────────────────────────────────── */
+  #upload-fab {
+    position: fixed; bottom: 1.75rem; right: 1.75rem; z-index: 100;
+    width: 50px; height: 50px; border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border: none; cursor: pointer; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px var(--accent-glow), 0 2px 8px rgba(0,0,0,.5);
+    transition: transform .2s, box-shadow .2s;
+  }
+  #upload-fab:hover { transform: scale(1.1); box-shadow: 0 6px 28px var(--accent-glow); }
+  #upload-fab .fab-tooltip {
+    position: absolute; right: calc(100% + .55rem); top: 50%; transform: translateY(-50%);
+    white-space: nowrap; background: rgba(0,0,0,.8); backdrop-filter: blur(8px);
+    border: 1px solid var(--border); border-radius: .45rem; padding: .28rem .6rem;
+    font-size: .7rem; color: var(--text-main); pointer-events: none;
+    opacity: 0; transition: opacity .2s;
+  }
+  #upload-fab:hover .fab-tooltip { opacity: 1; }
+
+  #file-input { display: none; }
+
+  /* ── Drag-drop overlay ───────────────────────────────────────────────────── */
+  #drop-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,.75); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center; flex-direction: column; gap: 1rem;
+    border: 2px dashed rgba(99,102,241,.65); pointer-events: none;
+    animation: pulseOverlay 1.8s infinite;
+  }
+  #drop-overlay.active { display: flex; pointer-events: all; }
+  @keyframes pulseOverlay {
+    0%, 100% { border-color: rgba(99,102,241,.45); }
+    50%       { border-color: rgba(99,102,241,.9); }
+  }
+  #drop-overlay svg { opacity: .75; animation: bounce 1.3s infinite; }
+  @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  #drop-overlay p { font-size: 1.1rem; font-weight: 600; color: var(--text-main); }
+  #drop-overlay small { font-size: .78rem; color: var(--text-muted); }
+
+  /* ── Upload modal ────────────────────────────────────────────────────────── */
+  #upload-modal {
+    display: none; position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,.72); backdrop-filter: blur(8px);
+    align-items: center; justify-content: center;
+  }
+  #upload-modal.active { display: flex; }
+  #upload-card {
+    background: rgba(12,12,20,.95); border: 1px solid var(--border);
+    border-radius: 1.2rem; padding: 1.6rem 1.9rem; width: 100%; max-width: 440px;
+    animation: msgIn .25s ease both; box-shadow: 0 8px 48px rgba(0,0,0,.65);
+  }
+  #upload-card h3 { font-size: .98rem; font-weight: 600; margin-bottom: 1.2rem; color: #fff; }
+
+  .file-info-row {
+    display: flex; align-items: center; gap: .7rem;
+    background: rgba(255,255,255,.04); border: 1px solid var(--border);
+    border-radius: .7rem; padding: .6rem .85rem; margin-bottom: .9rem;
+  }
+  .file-icon { flex-shrink: 0; color: var(--accent); }
+  .file-meta { flex: 1; min-width: 0; }
+  .file-name { font-size: .83rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-size { font-size: .7rem; color: var(--text-muted); margin-top: .12rem; }
+  .file-size.too-large { color: var(--red); font-weight: 600; }
+  .fmt-badge {
+    font-size: .58rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    background: rgba(99,102,241,.18); border: 1px solid rgba(99,102,241,.3);
+    border-radius: var(--radius-full); padding: .13rem .42rem; color: var(--accent); white-space: nowrap;
+  }
+
+  .progress-wrap { margin-bottom: .45rem; }
+  .progress-label { display: flex; justify-content: space-between; font-size: .7rem; color: var(--text-muted); margin-bottom: .3rem; }
+  .progress-bar-bg { height: 5px; background: rgba(255,255,255,.07); border-radius: 3px; overflow: hidden; }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 3px; transition: width .3s ease; width: 0%;
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+  .progress-bar-fill.done  { background: var(--green); box-shadow: 0 0 8px rgba(34,197,94,.35); }
+  .progress-bar-fill.error { background: var(--red); box-shadow: none; }
+
+  /* ── ETL step list in modal — COLOR CODED ─────────────────────────────────── */
+  #etl-steps { margin: .8rem 0 .9rem; list-style: none; }
+  #etl-steps li {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .78rem; color: var(--text-muted); padding: .26rem 0;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    transition: color .2s;
+  }
+  #etl-steps li:last-child { border-bottom: none; }
+  #etl-steps li .step-icon { width: 15px; flex-shrink: 0; }
+  #etl-steps li .step-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(255,255,255,.15); transition: background .25s;
+  }
+  #etl-steps li.done    { color: var(--green); }
+  #etl-steps li.done .step-dot { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.5); }
+  #etl-steps li.running { color: #fff; }
+  #etl-steps li.running .step-dot { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); animation: pulseDot 1s infinite; }
+  #etl-steps li.error   { color: var(--red); }
+  #etl-steps li.error .step-dot { background: var(--red); }
+  #etl-steps li.pending .step-dot { background: rgba(255,255,255,.12); }
+  @keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin .75s linear infinite; }
+
+  #upload-cancel {
+    width: 100%; padding: .52rem; border: 1px solid var(--border);
+    border-radius: .7rem; background: transparent; color: var(--text-muted);
+    font-size: .78rem; cursor: pointer; transition: background .2s, color .2s;
+  }
+  #upload-cancel:hover { background: rgba(255,255,255,.06); color: #fff; }
+
+  /* ── Interactive Data Table (post-ETL) ──────────────────────────────────── */
+  #data-panel {
+    width: 100%; max-width: 860px;
+    background: rgba(8,8,14,.8); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 1rem;
+    overflow: hidden; margin: 0 0 .75rem;
+    animation: msgIn .35s ease both;
+    display: none;
+  }
+  #data-panel.visible { display: block; }
+
+  .data-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .75rem 1rem;
+    background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.07);
+    flex-wrap: wrap; gap: .5rem;
+  }
+  .data-panel-title { font-size: .8rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: .5rem; }
+  .data-panel-title .tag {
+    font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    padding: .12rem .4rem; border-radius: var(--radius-full);
+  }
+  .tag.extract { background: rgba(59,130,246,.18); color: #93c5fd; border: 1px solid rgba(59,130,246,.3); }
+  .tag.transform { background: rgba(245,158,11,.18); color: #fcd34d; border: 1px solid rgba(245,158,11,.3); }
+  .tag.load { background: rgba(34,197,94,.18); color: #86efac; border: 1px solid rgba(34,197,94,.3); }
+
+  .data-controls { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+  .data-search {
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+    border-radius: .5rem; color: var(--text-main); font-size: .75rem;
+    padding: .3rem .6rem; outline: none; width: 160px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .data-search:focus { border-color: rgba(99,102,241,.5); box-shadow: 0 0 0 2px var(--accent-glow); }
+  .data-search::placeholder { color: var(--text-dim); }
+
+  .col-filter-select {
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+    border-radius: .5rem; color: var(--text-main); font-size: .72rem;
+    padding: .28rem .5rem; outline: none; cursor: pointer;
+    transition: border-color .2s;
+  }
+  .col-filter-select:focus { border-color: rgba(99,102,241,.4); }
+  .col-filter-select option { background: #1a1a2e; }
+
+  .data-btn {
+    background: rgba(99,102,241,.15); border: 1px solid rgba(99,102,241,.28);
+    border-radius: .45rem; color: #a5b4fc; font-size: .7rem;
+    padding: .28rem .6rem; cursor: pointer; transition: background .2s, color .2s;
+    white-space: nowrap;
+  }
+  .data-btn:hover { background: rgba(99,102,241,.28); color: #fff; }
+  .data-btn.active { background: rgba(99,102,241,.35); color: #fff; }
+
+  .data-metrics {
+    display: flex; gap: .5rem; padding: .55rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,.06); flex-wrap: wrap;
+  }
+  .metric-pill {
+    display: flex; align-items: center; gap: .35rem;
+    font-size: .68rem; padding: .2rem .55rem;
+    border-radius: var(--radius-full);
+    border: 1px solid transparent;
+  }
+  .metric-pill.blue  { background: rgba(59,130,246,.1); color: #93c5fd; border-color: rgba(59,130,246,.2); }
+  .metric-pill.amber { background: rgba(245,158,11,.1); color: #fcd34d; border-color: rgba(245,158,11,.2); }
+  .metric-pill.green { background: rgba(34,197,94,.1);  color: #86efac; border-color: rgba(34,197,94,.2); }
+  .metric-pill.red   { background: rgba(239,68,68,.1);  color: #fca5a5; border-color: rgba(239,68,68,.2); }
+  .metric-pill.teal  { background: rgba(20,184,166,.1); color: #5eead4; border-color: rgba(20,184,166,.2); }
+
+  .table-wrap { overflow-x: auto; max-height: 300px; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: .75rem; }
+  .data-table thead { position: sticky; top: 0; z-index: 2; }
+  .data-table th {
+    background: rgba(15,15,24,.95); backdrop-filter: blur(8px);
+    padding: .5rem .75rem; text-align: left; font-weight: 600;
+    color: var(--text-muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    cursor: pointer; user-select: none; white-space: nowrap;
+    transition: color .2s;
+  }
+  .data-table th:hover { color: #fff; }
+  .data-table th.sorted-asc::after  { content: ' ↑'; color: var(--accent); }
+  .data-table th.sorted-desc::after { content: ' ↓'; color: var(--accent); }
+  .data-table td {
+    padding: .42rem .75rem; border-bottom: 1px solid rgba(255,255,255,.04);
+    color: var(--text-main); vertical-align: middle;
+  }
+  .data-table tr:hover td { background: rgba(255,255,255,.03); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .cell-num { color: #93c5fd; font-variant-numeric: tabular-nums; }
+  .cell-date { color: #5eead4; }
+  .cell-null { color: var(--text-dim); font-style: italic; font-size: .68rem; }
+  .cell-bool-t { color: var(--green); }
+  .cell-bool-f { color: var(--red); }
+
+  .data-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem 1rem; border-top: 1px solid rgba(255,255,255,.06);
+    font-size: .68rem; color: var(--text-dim); flex-wrap: wrap; gap: .4rem;
+  }
+  .page-btns { display: flex; gap: .3rem; }
+  .page-btn {
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+    border-radius: .35rem; color: var(--text-muted); font-size: .68rem;
+    padding: .2rem .5rem; cursor: pointer; transition: background .2s, color .2s;
+  }
+  .page-btn:hover:not(:disabled) { background: rgba(255,255,255,.12); color: #fff; }
+  .page-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* ── Column type color legend bar ──────────────────────────────────────── */
+  .col-type-legend {
+    display: flex; gap: .4rem; padding: .4rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,.05); flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: .3rem; font-size: .65rem; color: var(--text-muted);
+  }
+  .legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── Responsive ─────────────────────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    #bottom { padding-bottom: 1.5rem; }
+    .bubble { max-width: 88%; }
+    #upload-fab { bottom: 1.1rem; right: 1.1rem; width: 44px; height: 44px; }
+    #upload-card { margin: 1rem; }
+    header { padding: .8rem 1rem .4rem; }
+    #chat-area { padding: .5rem 1rem .5rem; }
+    #bottom { padding: 0 1rem 1.5rem; }
+    #data-panel { border-radius: .75rem; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
+        <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
+      </svg>
+      DataFlow AI
+    </div>
+    <span class="badge">ETL · LangGraph · Pandas</span>
+  </header>
+
+  <!-- Hero -->
+  <div id="hero">
+    <h1>DataFlow AI</h1>
+    <p>Your intelligent assistant for ETL pipelines, Pandas workflows, and data engineering patterns.</p>
+    <div class="hero-pills">
+      <span class="hero-pill">Extract</span>
+      <span class="hero-pill">Transform</span>
+      <span class="hero-pill">Load</span>
+      <span class="hero-pill">LangGraph</span>
+      <span class="hero-pill">Pandas</span>
+    </div>
+  </div>
+
+  <!-- Error toast -->
+  <div id="error-toast"></div>
+
+  <!-- Interactive data panel (shown after ETL) -->
+  <div id="data-panel">
+    <div class="data-panel-header">
+      <div class="data-panel-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>
+        </svg>
+        Processed Dataset
+        <span class="tag extract" id="panel-tag-extract">Extracted</span>
+        <span class="tag transform" id="panel-tag-transform">Transformed</span>
+        <span class="tag load" id="panel-tag-load">Loaded</span>
+      </div>
+      <div class="data-controls">
+        <input class="data-search" type="text" id="tbl-search" placeholder="Search rows…" />
+        <select class="col-filter-select" id="col-type-filter">
+          <option value="">All columns</option>
+          <option value="number">Numeric</option>
+          <option value="date">Date</option>
+          <option value="text">Text</option>
+        </select>
+        <button class="data-btn" id="btn-export">↓ Export CSV</button>
+        <button class="data-btn" id="btn-close-panel">✕</button>
+      </div>
+    </div>
+    <div class="data-metrics" id="data-metrics"></div>
+    <div class="col-type-legend" id="col-legend"></div>
+    <div class="table-wrap">
+      <table class="data-table" id="data-table">
+        <thead id="table-head"></thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <div class="data-footer">
+      <span id="row-info">— rows</span>
+      <div class="page-btns">
+        <button class="page-btn" id="btn-prev">‹ Prev</button>
+        <span id="page-info" style="padding: .2rem .4rem; font-size: .68rem; color: var(--text-muted);"></span>
+        <button class="page-btn" id="btn-next">Next ›</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat messages -->
+  <div id="chat-area"></div>
+
+  <!-- Input + chips -->
+  <div id="bottom">
+    <div id="input-box">
+      <textarea id="msg-input" placeholder="Ask about ETL, Pandas, LangGraph, data quality…" rows="1"></textarea>
+      <div class="input-footer">
+        <div class="input-left">
+          <button class="icon-btn" id="etl-btn" title="Run ETL pipeline demo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="inline-upload-btn" title="Upload data file">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </button>
+        </div>
+        <button id="send-btn" disabled title="Send message">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="chips">
+      <button class="chip" data-q="Explain the 3-step ETL pipeline in this app">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        ETL Pipeline
+      </button>
+      <button class="chip" data-q="How does LangGraph orchestrate the ETL steps?">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        LangGraph
+      </button>
+      <button class="chip" data-q="Best practices for data quality checks in Pandas">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Data Quality
+      </button>
+      <button class="chip" data-q="How to handle missing values in a Pandas DataFrame?">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+        Missing Values
+      </button>
+      <button class="chip" data-q="How to add observability and logging to an ETL pipeline?">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Observability
+      </button>
+      <button class="chip" data-q="What is the Groq API and how is it used in this app?">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Groq API
+      </button>
+      <button class="chip" data-q="How does RAG work in this chatbot?">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        RAG
+      </button>
+      <button class="chip" data-q="How to write cleaned data to Parquet with Pandas?">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+        Parquet
+      </button>
+      <button class="chip" id="chip-upload">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload File
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- FAB -->
+<button id="upload-fab" title="Upload data file">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+  </svg>
+  <span class="fab-tooltip">Upload data file (CSV, Excel, JSON…)</span>
+</button>
+
+<input type="file" id="file-input" accept=".csv,.tsv,.txt,.xlsx,.xls,.json,.parquet,.avro,.xml" />
+
+<div id="drop-overlay">
+  <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+  </svg>
+  <p>Drop your data file here</p>
+  <small>CSV · TSV · Excel · JSON · Parquet · Avro · XML — up to 100 MB</small>
+</div>
+
+<!-- Upload progress modal -->
+<div id="upload-modal">
+  <div id="upload-card">
+    <h3>Processing File</h3>
+    <div class="file-info-row">
+      <div class="file-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <div class="file-meta">
+        <div class="file-name" id="modal-filename">—</div>
+        <div class="file-size" id="modal-filesize">—</div>
+      </div>
+      <span class="fmt-badge" id="modal-fmt">—</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span id="progress-label-text">Uploading…</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    </div>
+    <ul id="etl-steps">
+      <li id="step-upload"   class="pending"><span class="step-dot"></span> Uploading file</li>
+      <li id="step-parse"    class="pending"><span class="step-dot"></span> Parsing &amp; format detection</li>
+      <li id="step-clean"    class="pending"><span class="step-dot"></span> Cleaning &amp; normalising</li>
+      <li id="step-xform"    class="pending"><span class="step-dot"></span> Type inference &amp; transformation</li>
+      <li id="step-validate" class="pending"><span class="step-dot"></span> Data quality validation</li>
+      <li id="step-load"     class="pending"><span class="step-dot"></span> Writing output</li>
+    </ul>
+    <button id="upload-cancel">Cancel</button>
+  </div>
+</div>
+
+<script>
+  const hero          = document.getElementById('hero');
+  const app           = document.getElementById('app');
+  const chatArea      = document.getElementById('chat-area');
+  const msgInput      = document.getElementById('msg-input');
+  const sendBtn       = document.getElementById('send-btn');
+  const etlBtn        = document.getElementById('etl-btn');
+  const chips         = document.getElementById('chips');
+  const errToast      = document.getElementById('error-toast');
+  const uploadFab     = document.getElementById('upload-fab');
+  const inlineUpload  = document.getElementById('inline-upload-btn');
+  const chipUpload    = document.getElementById('chip-upload');
+  const fileInput     = document.getElementById('file-input');
+  const dropOverlay   = document.getElementById('drop-overlay');
+  const uploadModal   = document.getElementById('upload-modal');
+  const uploadCancel  = document.getElementById('upload-cancel');
+  const modalFilename = document.getElementById('modal-filename');
+  const modalFilesize = document.getElementById('modal-filesize');
+  const modalFmt      = document.getElementById('modal-fmt');
+  const progressFill  = document.getElementById('progress-fill');
+  const progressPct   = document.getElementById('progress-pct');
+  const progressLabel = document.getElementById('progress-label-text');
+  const dataPanel     = document.getElementById('data-panel');
+
+  const STEP_IDS = ['step-upload','step-parse','step-clean','step-xform','step-validate','step-load'];
+  const MAX_MB   = 100;
+  const PAGE_SIZE = 20;
+
+  let isWaiting    = false;
+  let uploadActive = false;
+  let dragCounter  = 0;
+  let chatStarted  = false;
+
+  // ── Data table state ──────────────────────────────────────────────────────
+  let tableData = { all: [], filtered: [], page: 0, cols: [], sortCol: null, sortAsc: true, colTypes: {} };
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function fmtBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+    return (b/1048576).toFixed(2) + ' MB';
+  }
+  function guessFormat(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    return { csv:'CSV',tsv:'TSV',txt:'CSV',xlsx:'Excel',xls:'Excel',json:'JSON',parquet:'Parquet',avro:'Avro',xml:'XML' }[ext] || ext.toUpperCase();
+  }
+  function setStep(id, state) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = state;
+  }
+  function resetSteps() {
+    STEP_IDS.forEach(id => setStep(id, 'pending'));
+    progressFill.style.width = '0%';
+    progressFill.className = 'progress-bar-fill';
+    progressPct.textContent = '0%';
+    progressLabel.textContent = 'Uploading…';
+  }
+  function setProgress(pct, label, state) {
+    progressFill.style.width = pct + '%';
+    progressPct.textContent = pct + '%';
+    if (label) progressLabel.textContent = label;
+    if (state) progressFill.className = 'progress-bar-fill ' + state;
+  }
+
+  // ── Chat transition ───────────────────────────────────────────────────────
+  function activateChat() {
+    if (chatStarted) return;
+    chatStarted = true;
+    hero.classList.add('collapsing');
+    app.classList.add('chat-active');
+    chatArea.classList.add('visible');
+  }
+
+  // ── Auto-resize textarea ──────────────────────────────────────────────────
+  function autoResize() {
+    msgInput.style.height = '52px';
+    const h = Math.min(msgInput.scrollHeight, 160);
+    msgInput.style.height = h + 'px';
+    msgInput.style.overflowY = h >= 160 ? 'auto' : 'hidden';
+  }
+  msgInput.addEventListener('input', () => {
+    autoResize();
+    const v = msgInput.value.trim();
+    sendBtn.disabled = !v || isWaiting;
+    sendBtn.classList.toggle('active', !!v && !isWaiting);
+  });
+  msgInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
+  });
+
+  // ── Message append ────────────────────────────────────────────────────────
+  function appendMsg(role, text, meta = '') {
+    activateChat();
+    const row = document.createElement('div');
+    row.className = `msg-row ${role}`;
+    const av = document.createElement('div');
+    av.className = `avatar ${role === 'user' ? 'user-av' : 'bot'}`;
+    av.textContent = role === 'user' ? 'U' : 'AI';
+    const wrap = document.createElement('div');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    wrap.appendChild(bubble);
+    if (meta) {
+      const m = document.createElement('div');
+      m.className = 'meta'; m.textContent = meta;
+      wrap.appendChild(m);
+    }
+    if (role === 'user') { row.appendChild(wrap); row.appendChild(av); }
+    else { row.appendChild(av); row.appendChild(wrap); }
+    chatArea.appendChild(row);
+    chatArea.scrollTop = chatArea.scrollHeight;
+    return bubble;
+  }
+
+  function showTyping() {
+    activateChat();
+    const row = document.createElement('div');
+    row.className = 'msg-row bot'; row.id = 'typing-row';
+    const av = document.createElement('div');
+    av.className = 'avatar bot'; av.textContent = 'AI';
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    b.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+    row.appendChild(av); row.appendChild(b);
+    chatArea.appendChild(row);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+  function removeTyping() {
+    const t = document.getElementById('typing-row'); if (t) t.remove();
+  }
+  function showError(msg) {
+    errToast.textContent = '⚠ ' + msg;
+    errToast.classList.add('visible');
+    setTimeout(() => errToast.classList.remove('visible'), 6000);
+  }
+
+  // ── Chat send ─────────────────────────────────────────────────────────────
+  async function doSend(text) {
+    const msg = (text || msgInput.value).trim();
+    if (!msg || isWaiting) return;
+    isWaiting = true;
+    sendBtn.disabled = true; sendBtn.classList.remove('active');
+    appendMsg('user', msg);
+    msgInput.value = ''; autoResize(); showTyping();
+    try {
+      const res = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message: msg}) });
+      const data = await res.json();
+      removeTyping();
+      if (!res.ok || data.error) { showError(data.error || 'Server error'); appendMsg('bot','Sorry, something went wrong.'); }
+      else { appendMsg('bot', data.reply, `${data.provider} · ${data.latency}s${data.rag_used?' · RAG':''}`); }
+    } catch(e) { removeTyping(); showError('Network error: '+e.message); appendMsg('bot','Could not reach the server.'); }
+    finally { isWaiting = false; sendBtn.disabled = !!msgInput.value.trim() ? false : true; sendBtn.classList.toggle('active', !!msgInput.value.trim()); }
+  }
+
+  sendBtn.addEventListener('click', () => doSend());
+  document.querySelectorAll('.chip:not(#chip-upload)').forEach(b => b.addEventListener('click', () => doSend(b.dataset.q)));
+
+  // ── ETL demo ──────────────────────────────────────────────────────────────
+  etlBtn.addEventListener('click', async () => {
+    if (isWaiting) return;
+    isWaiting = true; etlBtn.style.opacity = '.4';
+    appendMsg('user', '▶ Run ETL demo (data/raw/input.csv)');
+    showTyping();
+    try {
+      const res = await fetch('/api/etl', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({source:'data/raw/input.csv', dest:'data/clean/output.csv'}) });
+      const data = await res.json(); removeTyping();
+      if (!res.ok || data.error) { showError(data.error || 'ETL error'); appendMsg('bot','ETL run failed: '+(data.error||'unknown')); }
+      else {
+        const m = data.metrics || {};
+        let s = '✅ ETL pipeline complete\n\n';
+        s += `Rows extracted : ${m.raw_rows ?? '—'}\n`;
+        s += `Rows after ETL : ${m.cleaned_rows ?? '—'}\n`;
+        s += `Duplicates rm  : ${m.duplicates_removed ?? '—'}\n`;
+        s += `Nulls imputed  : ${m.nulls_imputed ?? '—'}\n`;
+        if ((data.warnings||[]).length) s += `\n⚠ Warnings:\n${data.warnings.join('\n')}`;
+        if ((data.errors||[]).length) s += `\n❌ Errors:\n${data.errors.join('\n')}`;
+        appendMsg('bot', s, 'ETL · LangGraph + Pandas');
+      }
+    } catch(e) { removeTyping(); showError('ETL failed: '+e.message); }
+    finally { isWaiting = false; etlBtn.style.opacity = ''; }
+  });
+
+  // ── Drag-drop ─────────────────────────────────────────────────────────────
+  document.addEventListener('dragenter', e => {
+    if (uploadActive) return;
+    dragCounter++;
+    if (e.dataTransfer.types.includes('Files')) dropOverlay.classList.add('active');
+  });
+  document.addEventListener('dragleave', () => { dragCounter--; if (dragCounter <= 0) { dragCounter = 0; dropOverlay.classList.remove('active'); } });
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => {
+    e.preventDefault(); dragCounter = 0; dropOverlay.classList.remove('active');
+    if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+  });
+
+  function openPicker() { fileInput.value = ''; fileInput.click(); }
+  uploadFab.addEventListener('click', openPicker);
+  inlineUpload.addEventListener('click', openPicker);
+  chipUpload.addEventListener('click', openPicker);
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) processFile(fileInput.files[0]); });
+  uploadCancel.addEventListener('click', () => { uploadModal.classList.remove('active'); uploadActive = false; });
+
+  // ── Upload + ETL flow ─────────────────────────────────────────────────────
+  async function processFile(file) {
+    if (uploadActive) return;
+    uploadActive = true;
+    const sizeMB = file.size / 1048576;
+    const fmt = guessFormat(file.name);
+    modalFilename.textContent = file.name;
+    modalFilesize.textContent = fmtBytes(file.size);
+    modalFilesize.className = 'file-size' + (sizeMB > MAX_MB ? ' too-large' : '');
+    modalFmt.textContent = fmt;
+    resetSteps(); uploadModal.classList.add('active');
+    if (sizeMB > MAX_MB) { setStep('step-upload','error'); setProgress(100,'File too large','error'); uploadActive = false; return; }
+
+    setStep('step-upload','running'); setProgress(5,'Uploading…');
+    const formData = new FormData(); formData.append('file', file);
+    let result;
+    try {
+      result = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/upload');
+        xhr.upload.addEventListener('progress', e => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded/e.total)*40), 'Uploading…');
+        });
+        xhr.addEventListener('load', () => {
+          try { resolve({ ok: xhr.status < 400, data: JSON.parse(xhr.responseText) }); }
+          catch(e) { reject(new Error('Invalid server response')); }
+        });
+        xhr.addEventListener('error', () => reject(new Error('Network error')));
+        xhr.send(formData);
+      });
+    } catch(e) { setStep('step-upload','error'); setProgress(100,'Upload failed','error'); uploadActive = false; return; }
+
+    if (!result.ok || result.data.error) { setStep('step-upload','error'); setProgress(100, result.data.error||'Upload failed','error'); uploadActive = false; return; }
+
+    setStep('step-upload','done'); setProgress(42,'Processing…');
+    const stepsLog = result.data.steps_log || [];
+    const stepMap = { 'Parsing':'step-parse','Cleaning':'step-clean','Transforming':'step-xform','Validating':'step-validate','Completed':'step-load','Loading':'step-load' };
+    const done = new Set(), errors = new Set();
+    for (const e of stepsLog) { const id = stepMap[e.step]; if (!id) continue; if (e.status==='error') errors.add(id); else if (e.status==='done') done.add(id); }
+    const pSteps = ['step-parse','step-clean','step-xform','step-validate','step-load'];
+    for (let i = 0; i < pSteps.length; i++) {
+      const id = pSteps[i];
+      await new Promise(r => setTimeout(r, 130));
+      setStep(id, errors.has(id) ? 'error' : done.has(id) ? 'done' : 'pending');
+      setProgress(42 + Math.round(((i+1)/pSteps.length)*55), 'Processing pipeline…');
+    }
+    const hasErrors = (result.data.errors||[]).length > 0;
+    setProgress(100, hasErrors ? 'Completed with issues' : 'Done!', hasErrors ? 'error' : 'done');
+    uploadCancel.textContent = 'Close';
+    setTimeout(() => {
+      uploadModal.classList.remove('active'); uploadCancel.textContent = 'Cancel'; uploadActive = false;
+      postUploadSummary(file.name, fmt, result.data);
+    }, 1400);
+  }
+
+  function postUploadSummary(name, fmt, data) {
+    activateChat();
+    const m = data.metrics || {};
+    const hasErrors = (data.errors||[]).length > 0;
+    let s = `📂 File processed: ${name} (${fmt})\n\n`;
+    s += `Rows extracted  : ${m.raw_rows ?? '—'}\n`;
+    s += `Rows after ETL  : ${m.cleaned_rows ?? '—'}\n`;
+    s += `Duplicates rm   : ${m.duplicates_removed ?? '—'}\n`;
+    s += `Nulls imputed   : ${m.nulls_imputed ?? '—'}\n`;
+    s += `Columns         : ${(m.raw_columns||[]).join(', ') || '—'}\n`;
+    if ((data.warnings||[]).length) s += `\n⚠ Warnings:\n${data.warnings.join('\n')}`;
+    s += hasErrors ? `\n❌ Errors:\n${data.errors.join('\n')}` : '\n✅ All quality checks passed';
+    appendMsg('user', `▶ Uploaded ${name}`);
+    appendMsg('bot', s, `ETL · ${fmt} · LangGraph + Pandas`);
+
+    if (m.schema && Object.keys(m.schema).length > 0) {
+      buildDataPanel(m);
+    }
+  }
+
+  // ── Interactive Data Panel ─────────────────────────────────────────────────
+  function inferColType(dtype, samples) {
+    if (/int|float|num/i.test(dtype)) return 'number';
+    if (/date|time/i.test(dtype)) return 'date';
+    if (samples && samples.length > 0) {
+      const allNum = samples.every(s => s !== '' && !isNaN(Number(s)));
+      if (allNum) return 'number';
+      if (samples.some(s => /\d{4}-\d{2}-\d{2}/.test(s))) return 'date';
+    }
+    return 'text';
+  }
+
+  function buildDataPanel(metrics) {
+    const schema = metrics.schema || {};
+    const cols = Object.keys(schema);
+    if (cols.length === 0) return;
+
+    const colTypes = {};
+    cols.forEach(c => { colTypes[c] = inferColType(schema[c].dtype, schema[c].sample); });
+
+    const rows = [];
+    const maxSampleLen = Math.max(...cols.map(c => (schema[c].sample||[]).length), 0);
+    for (let i = 0; i < maxSampleLen; i++) {
+      const row = {};
+      cols.forEach(c => { row[c] = (schema[c].sample || [])[i] ?? null; });
+      rows.push(row);
+    }
+
+    tableData = { all: rows, filtered: [...rows], page: 0, cols, sortCol: null, sortAsc: true, colTypes };
+
+    buildMetrics(metrics);
+    buildLegend(cols, colTypes);
+    buildTableHead(cols, colTypes);
+    renderTablePage();
+
+    dataPanel.classList.add('visible');
+    activateChat();
+  }
+
+  function buildMetrics(m) {
+    const el = document.getElementById('data-metrics');
+    el.innerHTML = '';
+    const pills = [
+      { cls:'blue',  icon:'⬡', label: `${m.raw_rows ?? '—'} raw rows` },
+      { cls:'green', icon:'✓', label: `${m.cleaned_rows ?? '—'} clean rows` },
+      { cls:'amber', icon:'⊘', label: `${m.duplicates_removed ?? 0} dupes removed` },
+      { cls:'teal',  icon:'◎', label: `${m.nulls_imputed ?? 0} nulls imputed` },
+      { cls:'red',   icon:'△', label: `${m.raw_columns?.length ?? 0} columns` },
+    ];
+    pills.forEach(p => {
+      const d = document.createElement('div');
+      d.className = `metric-pill ${p.cls}`;
+      d.textContent = `${p.icon} ${p.label}`;
+      el.appendChild(d);
+    });
+  }
+
+  function buildLegend(cols, colTypes) {
+    const el = document.getElementById('col-legend');
+    el.innerHTML = '';
+    const colors = { number: '#93c5fd', date: '#5eead4', text: '#d8b4fe' };
+    const labels = { number: 'Numeric', date: 'Date/Time', text: 'Text' };
+    const seen = new Set(Object.values(colTypes));
+    ['number','date','text'].forEach(t => {
+      if (!seen.has(t)) return;
+      const d = document.createElement('div'); d.className = 'legend-item';
+      d.innerHTML = `<span class="legend-dot" style="background:${colors[t]}"></span>${labels[t]}`;
+      el.appendChild(d);
+    });
+  }
+
+  function buildTableHead(cols, colTypes) {
+    const colors = { number: '#93c5fd', date: '#5eead4', text: '#d8b4fe' };
+    const thead = document.getElementById('table-head');
+    const tr = document.createElement('tr');
+    cols.forEach(c => {
+      const th = document.createElement('th');
+      th.innerHTML = `<span style="color:${colors[colTypes[c]]||'inherit'}">${c}</span>`;
+      th.dataset.col = c;
+      th.addEventListener('click', () => sortTable(c));
+      tr.appendChild(th);
+    });
+    thead.innerHTML = ''; thead.appendChild(tr);
+  }
+
+  function sortTable(col) {
+    if (tableData.sortCol === col) tableData.sortAsc = !tableData.sortAsc;
+    else { tableData.sortCol = col; tableData.sortAsc = true; }
+    tableData.filtered.sort((a, b) => {
+      const va = a[col], vb = b[col];
+      if (va == null) return 1; if (vb == null) return -1;
+      const n = parseFloat(va), m = parseFloat(vb);
+      const cmp = (!isNaN(n) && !isNaN(m)) ? (n - m) : String(va).localeCompare(String(vb));
+      return tableData.sortAsc ? cmp : -cmp;
+    });
+    document.querySelectorAll('.data-table th').forEach(th => {
+      th.classList.remove('sorted-asc','sorted-desc');
+      if (th.dataset.col === col) th.classList.add(tableData.sortAsc ? 'sorted-asc' : 'sorted-desc');
+    });
+    tableData.page = 0;
+    renderTablePage();
+  }
+
+  function renderTablePage() {
+    const { filtered, page, cols, colTypes } = tableData;
+    const total = filtered.length;
+    const start = page * PAGE_SIZE, end = Math.min(start + PAGE_SIZE, total);
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '';
+    for (let i = start; i < end; i++) {
+      const row = filtered[i], tr = document.createElement('tr');
+      cols.forEach(c => {
+        const td = document.createElement('td');
+        const v = row[c];
+        if (v == null || v === '') { td.className = 'cell-null'; td.textContent = 'null'; }
+        else if (colTypes[c] === 'number') { td.className = 'cell-num'; td.textContent = v; }
+        else if (colTypes[c] === 'date') { td.className = 'cell-date'; td.textContent = v; }
+        else if (v === 'true' || v === true) { td.className = 'cell-bool-t'; td.textContent = v; }
+        else if (v === 'false' || v === false) { td.className = 'cell-bool-f'; td.textContent = v; }
+        else td.textContent = v;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    }
+    document.getElementById('row-info').textContent = `Showing ${start+1}–${end} of ${total} rows`;
+    document.getElementById('page-info').textContent = `${page+1} / ${Math.max(1, Math.ceil(total/PAGE_SIZE))}`;
+    document.getElementById('btn-prev').disabled = page === 0;
+    document.getElementById('btn-next').disabled = end >= total;
+  }
+
+  function applyFilters() {
+    const q = document.getElementById('tbl-search').value.toLowerCase().trim();
+    const typeFilter = document.getElementById('col-type-filter').value;
+    let rows = tableData.all;
+    let cols = tableData.cols;
+    if (typeFilter) cols = cols.filter(c => tableData.colTypes[c] === typeFilter);
+    if (q) rows = rows.filter(r => cols.some(c => String(r[c]||'').toLowerCase().includes(q)));
+    tableData.filtered = rows;
+    tableData.page = 0;
+    if (typeFilter) {
+      document.getElementById('table-head').querySelectorAll('th').forEach(th => {
+        th.style.display = cols.includes(th.dataset.col) ? '' : 'none';
+      });
+      document.querySelectorAll('#table-body tr').forEach(tr => {
+        tr.querySelectorAll('td').forEach((td, i) => { td.style.display = cols.includes(tableData.cols[i]) ? '' : 'none'; });
+      });
+    } else {
+      document.querySelectorAll('.data-table th, .data-table td').forEach(el => el.style.display = '');
+    }
+    renderTablePage();
+  }
+
+  document.getElementById('tbl-search').addEventListener('input', applyFilters);
+  document.getElementById('col-type-filter').addEventListener('change', applyFilters);
+  document.getElementById('btn-prev').addEventListener('click', () => { tableData.page--; renderTablePage(); });
+  document.getElementById('btn-next').addEventListener('click', () => { tableData.page++; renderTablePage(); });
+  document.getElementById('btn-close-panel').addEventListener('click', () => { dataPanel.classList.remove('visible'); });
+  document.getElementById('btn-export').addEventListener('click', () => {
+    const { filtered, cols } = tableData;
+    const csv = [cols.join(','), ...filtered.map(r => cols.map(c => JSON.stringify(r[c]??'')).join(','))].join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv,' + encodeURIComponent(csv);
+    a.download = 'etl_output.csv'; a.click();
+  });
+</script>
+</body>
+</html>
