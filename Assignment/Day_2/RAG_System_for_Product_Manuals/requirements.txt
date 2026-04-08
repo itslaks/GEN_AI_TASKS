@@ -1,0 +1,9 @@
+flask
+groq
+pymupdf
+faiss-cpu
+numpy
+sentence-transformers
+transformers
+torch
+rank-bm25

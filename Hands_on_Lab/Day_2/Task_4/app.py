@@ -10,6 +10,7 @@ from typing import List, Dict, Any
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
 
 # LangChain imports
 from langchain_community.document_loaders import PyPDFLoader, CSVLoader, TextLoader
@@ -18,11 +19,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langchain_groq import ChatGroq
-
-# ✅ FIXED IMPORTS (no chains module needed)
 from langchain_core.prompts import PromptTemplate
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains.retrieval import create_retrieval_chain
 
 # CONFIG
 load_dotenv()
@@ -49,6 +46,7 @@ CORS(app)
 embeddings = None
 vectorstore = None
 qa_chain = None
+indexed_file_count = 0
 
 
 # EMBEDDINGS
@@ -121,19 +119,30 @@ def load_existing_vectorstore():
     )
 
 
-# ✅ RAG CHAIN (MODERN FIX)
-def build_qa_chain(vs: Chroma):
+def get_indexed_chunk_count(vs: Chroma) -> int:
+    try:
+        collection = vs._collection
+        data = collection.get(include=[])
+        return len(data.get("ids", []))
+    except Exception:
+        return 0
+
+
+def get_llm():
     if not GROQ_API_KEY:
         raise ValueError("Set GROQ_API_KEY in .env")
-
-    llm = ChatGroq(
+    return ChatGroq(
         groq_api_key=GROQ_API_KEY,
         model_name=GROQ_MODEL,
         temperature=0,
         max_tokens=1024,
     )
 
+
+def answer_with_rag(vs: Chroma, question: str) -> Dict[str, Any]:
     retriever = vs.as_retriever(search_kwargs={"k": TOP_K})
+    context_docs = retriever.invoke(question)
+    context_text = "\n\n".join(doc.page_content for doc in context_docs)
 
     prompt = PromptTemplate.from_template(
         """Answer ONLY from the context.
@@ -147,10 +156,11 @@ Question:
 """
     )
 
-    doc_chain = create_stuff_documents_chain(llm, prompt)
-    rag_chain = create_retrieval_chain(retriever, doc_chain)
-
-    return rag_chain
+    llm = get_llm()
+    prompt_text = prompt.format(context=context_text, input=question)
+    response = llm.invoke(prompt_text)
+    answer = getattr(response, "content", str(response))
+    return {"answer": answer, "context": context_docs}
 
 
 # ROUTES
@@ -159,9 +169,34 @@ def index():
     return send_from_directory(".", "index.html")
 
 
+@app.route("/favicon.ico")
+def favicon():
+    return ("", 204)
+
+
+@app.route("/api/status", methods=["GET"])
+def status():
+    global vectorstore, indexed_file_count
+    try:
+        if vectorstore is None:
+            vectorstore = load_existing_vectorstore()
+        chunks = get_indexed_chunk_count(vectorstore)
+        return jsonify({
+            "ready": chunks > 0,
+            "indexed_chunks": chunks,
+            "indexed_files": indexed_file_count,
+        })
+    except Exception:
+        return jsonify({
+            "ready": False,
+            "indexed_chunks": 0,
+            "indexed_files": indexed_file_count,
+        })
+
+
 @app.route("/api/upload", methods=["POST"])
 def upload():
-    global vectorstore, qa_chain
+    global vectorstore, qa_chain, indexed_file_count
 
     files = request.files.getlist("files")
 
@@ -169,23 +204,35 @@ def upload():
     uploaded = []
 
     for f in files:
-        path = UPLOAD_DIR / f.filename
+        if not f.filename:
+            continue
+        filename = secure_filename(f.filename)
+        if not filename:
+            continue
+        path = UPLOAD_DIR / filename
         f.save(path)
-        docs = load_document(str(path))
+        try:
+            docs = load_document(str(path))
+        except Exception as e:
+            logger.exception("Failed to load %s: %s", filename, e)
+            continue
         all_docs.extend(docs)
-        uploaded.append(f.filename)
+        if docs:
+            uploaded.append(filename)
 
     if not all_docs:
         return jsonify({"error": "No valid documents"}), 400
 
     chunks = split_documents(all_docs)
     vectorstore = build_vectorstore(chunks)
-    qa_chain = build_qa_chain(vectorstore)
+    qa_chain = True
+    indexed_file_count = len(uploaded)
 
     return jsonify({
         "status": "success",
         "files": uploaded,
-        "chunks": len(chunks)
+        "chunks": len(chunks),
+        "chunks_indexed": len(chunks),
     })
 
 
@@ -193,16 +240,17 @@ def upload():
 def query():
     global qa_chain, vectorstore
 
-    question = request.json.get("question", "").strip()
+    payload = request.get_json(silent=True) or {}
+    question = payload.get("question", "").strip()
 
     if not question:
         return jsonify({"error": "No question"}), 400
 
     if qa_chain is None:
         vectorstore = load_existing_vectorstore()
-        qa_chain = build_qa_chain(vectorstore)
+        qa_chain = True
 
-    result = qa_chain.invoke({"input": question})
+    result = answer_with_rag(vectorstore, question)
 
     answer = result.get("answer", "")
 
@@ -212,6 +260,8 @@ def query():
         sources.append({
             "filename": meta.get("filename"),
             "type": meta.get("source_type"),
+            "source_type": meta.get("source_type"),
+            "page": meta.get("page", meta.get("row")),
             "snippet": doc.page_content[:150]
         })
 
@@ -225,7 +275,7 @@ def query():
 @app.route("/api/reset", methods=["POST"])
 def reset():
     import shutil
-    global qa_chain, vectorstore
+    global qa_chain, vectorstore, indexed_file_count
 
     if CHROMA_DIR.exists():
         shutil.rmtree(CHROMA_DIR)
@@ -237,6 +287,7 @@ def reset():
 
     qa_chain = None
     vectorstore = None
+    indexed_file_count = 0
 
     return jsonify({"status": "reset"})
 
