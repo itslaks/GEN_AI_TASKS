@@ -21,11 +21,11 @@ GEN_AI/
 ├── Assignment/            # Take-home assignments (Day 1–3, Day 4 upcoming)
 │   ├── Day_1/             #   Prompt library & debugging prompts
 │   ├── Day_2/             #   RAG system + comparison report
-│   └── Day_3/             #   (upcoming)
+│   └── Day_3/             #   Recruitment_Pipeline_Workflow and Debugging_a_Broken_Workflow
 │
 ├── Class_Tasks/           # In-class exercises
 │   ├── Day_2/             #   CineAI — movie recommendation engine
-│   └── Day_3/             #   (upcoming)
+│   └── Day_3/             #   ETL chatbot
 │
 ├── .venv/                 # Python virtual environment
 ├── .gitignore
@@ -40,7 +40,7 @@ GEN_AI/
 |-----|-------|:------------:|:----------:|:----------:|
 | **Day 1** | Prompt Engineering & Agents | ✅ 4 tasks | ✅ 2 docs | — |
 | **Day 2** | RAG & Vector Search | ✅ 4 tasks | ✅ 2 items | ✅ CineAI |
-| **Day 3** | LangGraph & Multi-Agent | ✅ 4 tasks | 🔲 Pending | 🔲 Pending |
+| **Day 3** | LangGraph & Multi-Agent | ✅ 4 tasks | ✅ 2 items  | ✅ ETL chatbot |
 | **Day 4** | *(Upcoming)* | 🔲 Pending | 🔲 Pending | — |
 | **Day 5** | Capstone Project | 🔲 Pending | — | — |
 
@@ -192,4 +192,4 @@ Each task has its own `requirements.txt` and detailed README with setup instruct
 
 ---
 
-*Built with ❤️ as part of a Generative AI course*
+*Built with ❤️ as part of a Generative AI course by Lakshan*
