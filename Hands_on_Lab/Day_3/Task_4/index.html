@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research Pipeline — Multi-Agent AI</title>
+  <meta name="description" content="Production-grade multi-agent AI research pipeline powered by LangGraph, Groq, and ChromaDB. Generate deep research reports in seconds." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ────────────────────────────────────────────────────────────────
+       Design tokens
+    ──────────────────────────────────────────────────────────────── */
+    :root {
+      --bg:           #050810;
+      --bg2:          #0c1020;
+      --bg3:          #111828;
+      --glass:        rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.08);
+      --neon-blue:    #3b82f6;
+      --neon-cyan:    #06b6d4;
+      --neon-purple:  #8b5cf6;
+      --neon-green:   #10b981;
+      --neon-amber:   #f59e0b;
+      --neon-red:     #ef4444;
+      --text:         #e2e8f0;
+      --text-dim:     #64748b;
+      --text-muted:   #334155;
+      --radius:       14px;
+      --agent-r:      var(--neon-cyan);
+      --agent-w:      var(--neon-purple);
+      --agent-e:      var(--neon-green);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated grid background ───────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Glow orbs ──────────────────────────────────────────────── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb-1 { width: 600px; height: 600px; top: -200px; left: -200px;
+              background: rgba(59,130,246,.12); }
+    .orb-2 { width: 500px; height: 500px; bottom: -150px; right: -150px;
+              background: rgba(139,92,246,.10); }
+    .orb-3 { width: 350px; height: 350px; top: 40%; left: 55%;
+              background: rgba(6,182,212,.07); }
+
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .app-wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2rem 0 2.5rem;
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem;
+      box-shadow: 0 0 20px rgba(59,130,246,.4);
+    }
+    .logo-text { font-size: 1.25rem; font-weight: 700; letter-spacing: -.02em; }
+    .logo-text span { color: var(--neon-blue); }
+
+    .header-badge {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .4rem .9rem;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 100px;
+      font-size: .75rem; font-weight: 500; color: var(--text-dim);
+    }
+    .badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--neon-green);
+      animation: pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: .4; transform: scale(.7); }
+    }
+
+    /* ── Main grid ──────────────────────────────────────────────── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Glass card ─────────────────────────────────────────────── */
+    .card {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 1.5rem;
+    }
+    .card-title {
+      font-size: .7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .12em; color: var(--text-dim);
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Input section ──────────────────────────────────────────── */
+    .query-section { margin-bottom: 1.5rem; }
+
+    .input-label {
+      display: block;
+      font-size: .8rem; font-weight: 500; color: var(--text-dim);
+      margin-bottom: .5rem;
+    }
+    .input-row { display: flex; gap: .75rem; margin-bottom: .75rem; }
+    .input-row .field { flex: 1; }
+
+    input[type="text"], textarea, select {
+      width: 100%;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      padding: .7rem 1rem;
+      color: var(--text);
+      font-family: inherit;
+      font-size: .9rem;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input[type="text"]:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+    }
+    select option { background: var(--bg2); }
+
+    #query-input {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .char-counter {
+      text-align: right;
+      font-size: .72rem;
+      color: var(--text-dim);
+      margin-top: .25rem;
+      transition: color .2s;
+    }
+    .char-counter.warn { color: var(--neon-amber); }
+    .char-counter.error { color: var(--neon-red); }
+
+    /* ── Run button ─────────────────────────────────────────────── */
+    #run-btn {
+      width: 100%;
+      padding: .9rem;
+      background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+      border: none; border-radius: 10px;
+      color: #fff; font-family: inherit;
+      font-size: 1rem; font-weight: 600;
+      cursor: pointer;
+      position: relative; overflow: hidden;
+      transition: opacity .2s, transform .15s, box-shadow .2s;
+      box-shadow: 0 0 24px rgba(59,130,246,.3);
+    }
+    #run-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 0 36px rgba(59,130,246,.45);
+    }
+    #run-btn:active:not(:disabled) { transform: translateY(0); }
+    #run-btn:disabled { opacity: .5; cursor: not-allowed; }
+    #run-btn::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.1), transparent);
+      pointer-events: none;
+    }
+
+    /* ── Agent timeline ─────────────────────────────────────────── */
+    .timeline { margin: 1.75rem 0; display: flex; align-items: stretch; gap: 0; }
+
+    .timeline-step {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    .timeline-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 22px; left: 60%;
+      width: calc(80%); height: 2px;
+      background: var(--glass-border);
+      transition: background .4s;
+    }
+    .timeline-step.done:not(:last-child)::after {
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+    }
+
+    .step-bubble {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: 2px solid var(--glass-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      background: var(--bg2);
+      transition: border-color .3s, box-shadow .3s, transform .3s;
+      position: relative; z-index: 1;
+    }
+    .timeline-step.active .step-bubble {
+      border-color: var(--c);
+      box-shadow: 0 0 16px var(--c);
+      animation: bubble-pulse 1.5s infinite;
+    }
+    .timeline-step.done .step-bubble {
+      border-color: var(--c);
+      background: rgba(var(--cr),var(--cg),var(--cb),.15);
+    }
+    @keyframes bubble-pulse {
+      0%, 100% { box-shadow: 0 0 12px var(--c); }
+      50%       { box-shadow: 0 0 28px var(--c); }
+    }
+
+    .step-label {
+      margin-top: .5rem;
+      font-size: .72rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--text-dim);
+      transition: color .3s;
+    }
+    .timeline-step.active .step-label,
+    .timeline-step.done  .step-label { color: var(--c); }
+
+    .step-status {
+      font-size: .65rem; color: var(--text-muted);
+      margin-top: .2rem;
+    }
+
+    /* Step colours via CSS variables */
+    .step-researcher { --c: var(--agent-r); }
+    .step-writer     { --c: var(--agent-w); }
+    .step-editor     { --c: var(--agent-e); }
+
+    /* ── Progress bar ───────────────────────────────────────────── */
+    .progress-wrap {
+      height: 4px;
+      background: var(--bg3);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple), var(--neon-cyan));
+      background-size: 200% 100%;
+      border-radius: 4px;
+      transition: width .5s ease;
+      animation: shimmer 2s linear infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% center; }
+      100% { background-position: -200% center; }
+    }
+
+    /* ── Report output ──────────────────────────────────────────── */
+    #report-section { display: none; }
+
+    #report-content {
+      background: var(--bg2);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      font-size: .9rem;
+      line-height: 1.75;
+      color: var(--text);
+      white-space: pre-wrap;
+      max-height: 480px;
+      overflow-y: auto;
+      font-family: 'Inter', sans-serif;
+    }
+    #report-content::-webkit-scrollbar { width: 5px; }
+    #report-content::-webkit-scrollbar-track { background: transparent; }
+    #report-content::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 5px; }
+
+    .report-actions {
+      display: flex; gap: .75rem;
+      margin-top: 1rem;
+    }
+    .action-btn {
+      display: flex; align-items: center; gap: .4rem;
+      padding: .5rem 1rem;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit; font-size: .82rem; cursor: pointer;
+      transition: background .2s, border-color .2s, transform .15s;
+    }
+    .action-btn:hover {
+      background: rgba(255,255,255,.08);
+      border-color: var(--neon-blue);
+      transform: translateY(-1px);
+    }
+    .action-btn:active { transform: translateY(0); }
+
+    /* ── Logs panel ─────────────────────────────────────────────── */
+    .logs-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      padding: .75rem 0;
+      border-top: 1px solid var(--glass-border);
+      margin-top: 1.25rem;
+    }
+    .logs-toggle-label {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .8rem; font-weight: 500; color: var(--text-dim);
+    }
+    .logs-badge {
+      background: var(--neon-blue);
+      color: #fff;
+      border-radius: 100px;
+      font-size: .65rem; font-weight: 700;
+      padding: .1rem .45rem;
+    }
+    .chevron { transition: transform .3s; display:inline-block; }
+    .logs-toggle.open .chevron { transform: rotate(180deg); }
+
+    #logs-container {
+      display: none;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: .5rem;
+    }
+    #logs-container::-webkit-scrollbar { width: 4px; }
+    #logs-container::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; }
+
+    .log-entry {
+      display: grid;
+      grid-template-columns: 110px 100px 1fr;
+      gap: .5rem;
+      padding: .45rem 0;
+      border-bottom: 1px solid var(--glass-border);
+      font-size: .73rem;
+      font-family: 'JetBrains Mono', monospace;
+      animation: fade-in .2s ease;
+    }
+    @keyframes fade-in { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: none; } }
+
+    .log-ts { color: var(--text-muted); }
+    .log-node {
+      font-weight: 600;
+      padding: .1rem .35rem;
+      border-radius: 4px;
+      font-size: .68rem;
+      text-align: center;
+    }
+    .log-node.researcher { background: rgba(6,182,212,.15); color: var(--neon-cyan); }
+    .log-node.writer     { background: rgba(139,92,246,.15); color: var(--neon-purple); }
+    .log-node.editor     { background: rgba(16,185,129,.15); color: var(--neon-green); }
+    .log-msg { color: var(--text-dim); align-self: center; }
+
+    /* ── Sidebar ─────────────────────────────────────────────────── */
+    .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* Citations */
+    #citations-card { flex: 1; }
+    #citation-list { list-style: none; }
+    #citation-list li {
+      padding: .5rem 0;
+      border-bottom: 1px solid var(--glass-border);
+      font-size: .78rem;
+    }
+    #citation-list li:last-child { border-bottom: none; }
+    #citation-list a {
+      color: var(--neon-blue);
+      text-decoration: none;
+      word-break: break-all;
+      display: flex; align-items: flex-start; gap: .4rem;
+      transition: color .2s;
+    }
+    #citation-list a:hover { color: var(--neon-cyan); }
+    #citation-list a::before { content: '↗'; flex-shrink: 0; }
+
+    .empty-state {
+      color: var(--text-muted);
+      font-size: .8rem;
+      text-align: center;
+      padding: 1.5rem 0;
+    }
+
+    /* Stats mini-card */
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    .stat-item {
+      background: var(--bg2);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      padding: .75rem;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 1.3rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--neon-blue), var(--neon-cyan));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .stat-label { font-size: .65rem; color: var(--text-muted); margin-top: .2rem; }
+
+    /* LLM mode badge */
+    #llm-mode-badge {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .6rem 1rem;
+      border-radius: 8px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      font-size: .78rem;
+    }
+    #llm-mode-icon { font-size: 1rem; }
+    #llm-mode-text { color: var(--text-dim); }
+
+    /* ── Error toast ─────────────────────────────────────────────── */
+    #error-toast {
+      display: none;
+      margin-top: 1rem;
+      padding: .75rem 1rem;
+      background: rgba(239,68,68,.12);
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 8px;
+      color: #fca5a5;
+      font-size: .85rem;
+    }
+
+    /* ── Skeleton loader ─────────────────────────────────────────── */
+    .skeleton-line {
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, var(--bg3) 25%, var(--bg2) 50%, var(--bg3) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.5s infinite;
+      margin-bottom: .75rem;
+    }
+    @keyframes skeleton-shimmer {
+      0% { background-position: 200% center; }
+      100% { background-position: -200% center; }
+    }
+    .skeleton-line:nth-child(2) { width: 85%; }
+    .skeleton-line:nth-child(3) { width: 92%; }
+    .skeleton-line:nth-child(4) { width: 70%; }
+
+    /* ── Scrollbar global ────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 5px; }
+
+    /* ── Utility ─────────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+    .flex-center { display: flex; align-items: center; justify-content: center; }
+
+    /* ── Section title ───────────────────────────────────────────── */
+    .section-heading {
+      font-size: 1.4rem; font-weight: 700; letter-spacing: -.02em;
+      margin-bottom: .35rem;
+    }
+    .section-sub {
+      font-size: .85rem; color: var(--text-dim);
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Intro hero ──────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 3rem 0 2rem;
+    }
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -.04em;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #fff 30%, var(--neon-blue) 60%, var(--neon-purple));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: .75rem;
+    }
+    .hero-sub {
+      font-size: 1rem; color: var(--text-dim);
+      max-width: 520px; margin: 0 auto 2rem;
+      line-height: 1.65;
+    }
+    .hero-tags {
+      display: flex; flex-wrap: wrap; gap: .5rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    .tag {
+      padding: .3rem .75rem;
+      border-radius: 100px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass);
+      font-size: .72rem; font-weight: 500;
+      color: var(--text-dim);
+    }
+    .tag.blue   { border-color: rgba(59,130,246,.4);  color: var(--neon-blue);   background: rgba(59,130,246,.08); }
+    .tag.purple { border-color: rgba(139,92,246,.4);  color: var(--neon-purple); background: rgba(139,92,246,.08); }
+    .tag.cyan   { border-color: rgba(6,182,212,.4);   color: var(--neon-cyan);   background: rgba(6,182,212,.08); }
+    .tag.green  { border-color: rgba(16,185,129,.4);  color: var(--neon-green);  background: rgba(16,185,129,.08); }
+  </style>
+</head>
+<body>
+  <!-- Ambient glows -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="app-wrap">
+    <!-- ── Header ─────────────────────────────────────────────── -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🔬</div>
+        <div class="logo-text">Research<span>AI</span></div>
+      </div>
+      <div class="header-badge">
+        <span class="badge-dot"></span>
+        3-Agent Pipeline Ready
+      </div>
+    </header>
+
+    <!-- ── Hero ───────────────────────────────────────────────── -->
+    <div class="hero">
+      <h1 class="hero-title">Multi-Agent Research<br/>Pipeline</h1>
+      <p class="hero-sub">
+        Researcher → Writer → Editor. Powered by LangGraph orchestration, Groq LLM,
+        and ChromaDB vector search — producing cited, structured reports in seconds.
+      </p>
+      <div class="hero-tags">
+        <span class="tag blue">LangGraph</span>
+        <span class="tag purple">Groq llama-3.1-8b-instant</span>
+        <span class="tag cyan">ChromaDB</span>
+        <span class="tag green">Automatic Fallback</span>
+        <span class="tag">Rate Limited</span>
+        <span class="tag">Input Validated</span>
+      </div>
+    </div>
+
+    <!-- ── Main layout ────────────────────────────────────────── -->
+    <div class="main-grid">
+      <!-- Left: query + output -->
+      <div>
+        <!-- Query form -->
+        <div class="card query-section" id="query-card">
+          <p class="card-title">Research Query</p>
+
+          <label class="input-label" for="query-input">What do you want to research?</label>
+          <textarea id="query-input"
+                    placeholder="e.g. The impact of large language models on scientific research..."
+                    maxlength="397"
+                    aria-label="Research query"
+                    aria-required="true"
+                    rows="4"></textarea>
+          <div class="char-counter" id="char-counter">0 / 397</div>
+
+          <div class="input-row" style="margin-top:.75rem;">
+            <div class="field">
+              <label class="input-label" for="audience-input">Target Audience</label>
+              <input type="text" id="audience-input"
+                     placeholder="e.g. university students"
+                     maxlength="397"
+                     value="general public"
+                     aria-label="Target audience" />
+            </div>
+            <div class="field">
+              <label class="input-label" for="length-select">Report Length</label>
+              <select id="length-select" aria-label="Report length">
+                <option value="short">Short (~300 words)</option>
+                <option value="medium" selected>Medium (~600 words)</option>
+                <option value="long">Long (~1000 words)</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="error-toast" role="alert" aria-live="polite"></div>
+
+          <button id="run-btn" onclick="runPipeline()">
+            ⚡ Run Research Pipeline
+          </button>
+        </div>
+
+        <!-- Agent timeline -->
+        <div class="card" style="margin-top:1.25rem;" id="timeline-card">
+          <p class="card-title">Pipeline Progress</p>
+          <div class="progress-wrap">
+            <div id="progress-bar"></div>
+          </div>
+          <div class="timeline" role="list" aria-label="3-agent pipeline steps">
+            <div class="timeline-step step-researcher" id="step-researcher" role="listitem">
+              <div class="step-bubble">🔍</div>
+              <div class="step-label">Researcher</div>
+              <div class="step-status" id="status-researcher">Waiting</div>
+            </div>
+            <div class="timeline-step step-writer" id="step-writer" role="listitem">
+              <div class="step-bubble">✍️</div>
+              <div class="step-label">Writer</div>
+              <div class="step-status" id="status-writer">Waiting</div>
+            </div>
+            <div class="timeline-step step-editor" id="step-editor" role="listitem">
+              <div class="step-bubble">📝</div>
+              <div class="step-label">Editor</div>
+              <div class="step-status" id="status-editor">Waiting</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Report output -->
+        <div id="report-section" class="card" style="margin-top:1.25rem;">
+          <p class="card-title">Final Report</p>
+          <div id="report-skeleton">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+          </div>
+          <pre id="report-content" class="hidden" aria-label="Generated research report"></pre>
+          <div class="report-actions" id="report-actions" style="display:none;">
+            <button class="action-btn" id="copy-btn" onclick="copyReport()" aria-label="Copy report to clipboard">
+              📋 Copy
+            </button>
+            <button class="action-btn" id="download-btn" onclick="downloadReport()" aria-label="Download report as text file">
+              ⬇ Download .txt
+            </button>
+          </div>
+
+          <!-- Logs collapsible -->
+          <div class="logs-toggle" id="logs-toggle" onclick="toggleLogs()" role="button"
+               tabindex="0" aria-expanded="false" aria-controls="logs-container">
+            <span class="logs-toggle-label">
+              🗂 Observability Logs
+              <span class="logs-badge" id="log-count">0</span>
+            </span>
+            <span class="chevron">▾</span>
+          </div>
+          <div id="logs-container" role="log" aria-live="polite" aria-label="Pipeline execution logs"></div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <!-- Stats card -->
+        <div class="card" id="stats-card">
+          <p class="card-title">Run Stats</p>
+          <div class="stat-grid">
+            <div class="stat-item">
+              <div class="stat-value" id="stat-tokens">—</div>
+              <div class="stat-label">Est. Tokens</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="stat-latency">—</div>
+              <div class="stat-label">Total (s)</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="stat-chunks">—</div>
+              <div class="stat-label">Chunks</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="stat-cits">—</div>
+              <div class="stat-label">Citations</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LLM mode -->
+        <div class="card" id="llm-mode-badge">
+          <span id="llm-mode-icon">🤖</span>
+          <span id="llm-mode-text">LLM mode will appear here after a run.</span>
+        </div>
+
+        <!-- Citations -->
+        <div class="card" id="citations-card">
+          <p class="card-title">Citations</p>
+          <ul id="citation-list">
+            <li class="empty-state">Citations appear after a run.</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       Vanilla JS — no external frameworks
+  ================================================================ -->
+  <script>
+    /* ── Constants ────────────────────────────────────────────────── */
+    const MAX_LEN      = 397;   // Must mirror backend MAX_FIELD_LEN
+    const API_RUN      = '/api/run';
+    const API_STATUS   = (id) => `/api/status/${id}`;
+    const ALLOWED_LENS = ['short', 'medium', 'long'];
+
+    /* ── DOM refs ─────────────────────────────────────────────────── */
+    const queryInput  = document.getElementById('query-input');
+    const audienceIn  = document.getElementById('audience-input');
+    const lengthSel   = document.getElementById('length-select');
+    const runBtn      = document.getElementById('run-btn');
+    const errorToast  = document.getElementById('error-toast');
+    const progressBar = document.getElementById('progress-bar');
+    const reportSect  = document.getElementById('report-section');
+    const reportSkel  = document.getElementById('report-skeleton');
+    const reportEl    = document.getElementById('report-content');
+    const reportActs  = document.getElementById('report-actions');
+    const charCounter = document.getElementById('char-counter');
+    const logCnt      = document.getElementById('log-count');
+    const logsWrap    = document.getElementById('logs-container');
+    const logsToggle  = document.getElementById('logs-toggle');
+
+    /* ── State ────────────────────────────────────────────────────── */
+    let currentReport = '';
+    let currentRunId  = '';
+    let pollTimer     = null;
+    let runStart      = 0;
+
+    /* ── Char counter ─────────────────────────────────────────────── */
+    queryInput.addEventListener('input', () => {
+      const len = queryInput.value.length;
+      charCounter.textContent = `${len} / ${MAX_LEN}`;
+      charCounter.className = 'char-counter' + (len > 380 ? (len >= MAX_LEN ? ' error' : ' warn') : '');
+    });
+
+    /* ── Client-side validation ───────────────────────────────────── */
+    function validateInputs() {
+      const q = queryInput.value.trim();
+      const a = audienceIn.value.trim();
+      const l = lengthSel.value;
+
+      if (!q || q.length < 3) {
+        return 'Please enter a research query of at least 3 characters.';
+      }
+      if (q.length > MAX_LEN) {
+        return `Query must be ≤ ${MAX_LEN} characters.`;
+      }
+      if (a.length > MAX_LEN) {
+        return `Audience must be ≤ ${MAX_LEN} characters.`;
+      }
+      if (!ALLOWED_LENS.includes(l)) {
+        return 'Invalid report length selection.';
+      }
+      return null;          // null = valid
+    }
+
+    /* ── Show/hide error toast ────────────────────────────────────── */
+    function showError(msg) {
+      errorToast.textContent = `⚠️ ${msg}`;
+      errorToast.style.display = 'block';
+    }
+    function hideError() {
+      errorToast.style.display = 'none';
+    }
+
+    /* ── Timeline helpers ─────────────────────────────────────────── */
+    function setStep(name, state) {          // state: idle | active | done
+      const el   = document.getElementById(`step-${name}`);
+      const stat = document.getElementById(`status-${name}`);
+      el.className = `timeline-step step-${name}`;
+      if (state === 'active') { el.classList.add('active'); stat.textContent = 'Running…'; }
+      if (state === 'done')   { el.classList.add('done');   stat.textContent = 'Done ✓'; }
+      if (state === 'idle')   { stat.textContent = 'Waiting'; }
+    }
+
+    function resetTimeline() {
+      ['researcher', 'writer', 'editor'].forEach(n => setStep(n, 'idle'));
+      progressBar.style.width = '0%';
+    }
+
+    /* ── Infer active step from logs ─────────────────────────────── */
+    function updateTimelineFromLogs(logs) {
+      const nodes = logs.map(l => l.node);
+      const has = (n) => nodes.includes(n);
+      const last = nodes[nodes.length - 1];
+
+      const complete = { researcher: false, writer: false, editor: false };
+      logs.forEach(l => {
+        if (l.node === 'researcher' && l.message.includes('complete')) complete.researcher = true;
+        if (l.node === 'writer'     && l.message.includes('complete')) complete.writer     = true;
+        if (l.node === 'editor'     && l.message.includes('complete')) complete.editor     = true;
+      });
+
+      setStep('researcher', complete.researcher ? 'done' : (has('researcher') ? 'active' : 'idle'));
+      setStep('writer',     complete.writer     ? 'done' : (has('writer')     ? 'active' : 'idle'));
+      setStep('editor',     complete.editor     ? 'done' : (has('editor')     ? 'active' : 'idle'));
+
+      const doneCount = Object.values(complete).filter(Boolean).length;
+      progressBar.style.width = `${Math.round((doneCount / 3) * 100)}%`;
+    }
+
+    /* ── Render logs ──────────────────────────────────────────────── */
+    let renderedLogs = 0;
+    function renderNewLogs(logs) {
+      for (let i = renderedLogs; i < logs.length; i++) {
+        const l = logs[i];
+        const ts  = new Date(l.ts).toLocaleTimeString('en-GB', { hour12: false });
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        div.innerHTML = `
+          <span class="log-ts">${ts}</span>
+          <span class="log-node ${l.node}">${l.node}</span>
+          <span class="log-msg">${escapeHtml(l.message)}${l.latency_s > 0 ? ` <em style="color:var(--text-muted)">(${l.latency_s}s${l.tokens > 0 ? ', '+l.tokens+' tok' : ''})</em>` : ''}</span>
+        `;
+        logsWrap.appendChild(div);
+        logsWrap.scrollTop = logsWrap.scrollHeight;
+      }
+      renderedLogs = logs.length;
+      logCnt.textContent = logs.length;
+    }
+
+    /* ── Update stats ─────────────────────────────────────────────── */
+    function updateStats(logs, citations) {
+      const totalTokens  = logs.reduce((s, l) => s + (l.tokens || 0), 0);
+      const totalLatency = logs.reduce((s, l) => s + (l.latency_s || 0), 0);
+      const chunkLogs    = logs.filter(l => l.message.includes('chunks'));
+      const chunkMatch   = chunkLogs.length ? chunkLogs[0].message.match(/\d+/) : null;
+
+      document.getElementById('stat-tokens').textContent  = totalTokens  || '—';
+      document.getElementById('stat-latency').textContent = totalLatency.toFixed(1) + 's';
+      document.getElementById('stat-chunks').textContent  = chunkMatch ? chunkMatch[0] : '—';
+      document.getElementById('stat-cits').textContent    = citations.length;
+    }
+
+    /* ── Render citations ─────────────────────────────────────────── */
+    function renderCitations(urls) {
+      const list = document.getElementById('citation-list');
+      if (!urls || urls.length === 0) {
+        list.innerHTML = '<li class="empty-state">No citations found.</li>';
+        return;
+      }
+      list.innerHTML = urls.map(url =>
+        `<li><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a></li>`
+      ).join('');
+    }
+
+    /* ── Detect fallback mode from report text ────────────────────── */
+    function updateLlmBadge(report) {
+      const badge = document.getElementById('llm-mode-badge');
+      const icon  = document.getElementById('llm-mode-icon');
+      const text  = document.getElementById('llm-mode-text');
+      if (report.includes('[FALLBACK MODE')) {
+        icon.textContent = '🔌';
+        text.textContent = 'Running in local fallback mode (Groq unavailable).';
+        badge.style.borderColor = 'rgba(245,158,11,.3)';
+      } else {
+        icon.textContent = '⚡';
+        text.textContent = `Groq · llama-3.1-8b-instant`;
+        badge.style.borderColor = 'rgba(59,130,246,.3)';
+      }
+    }
+
+    /* ── Main run function ────────────────────────────────────────── */
+    async function runPipeline() {
+      hideError();
+      const err = validateInputs();
+      if (err) { showError(err); return; }
+
+      const payload = {
+        query:    queryInput.value.trim().substring(0, MAX_LEN),
+        audience: audienceIn.value.trim().substring(0, MAX_LEN) || 'general public',
+        length:   lengthSel.value,
+      };
+
+      // Reset UI
+      runBtn.disabled = true;
+      runBtn.textContent = '⏳ Running Pipeline…';
+      resetTimeline();
+      renderedLogs = 0;
+      logsWrap.innerHTML = '';
+      logCnt.textContent = '0';
+      reportSect.style.display = 'none';
+      currentReport = '';
+      runStart = Date.now();
+
+      try {
+        const resp = await fetch(API_RUN, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (resp.status === 429) {
+          const data = await resp.json().catch(() => ({}));
+          throw new Error(`Rate limit reached. ${data.retry_after ? `Retry after: ${data.retry_after}` : 'Please wait a moment.'}`);
+        }
+        if (resp.status === 422) {
+          const data = await resp.json().catch(() => ({}));
+          const detail = data.details ? JSON.stringify(data.details) : data.error;
+          throw new Error(`Validation error: ${detail}`);
+        }
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          throw new Error(data.error || `Server error (${resp.status})`);
+        }
+
+        const data = await resp.json();
+        currentRunId = data.run_id;
+
+        // Update UI with result
+        showReport(data.final_report, data.logs, data.citations);
+
+      } catch (ex) {
+        showError(ex.message || 'An unknown error occurred.');
+        resetTimeline();
+      } finally {
+        runBtn.disabled = false;
+        runBtn.textContent = '⚡ Run Research Pipeline';
+        clearTimeout(pollTimer);
+      }
+    }
+
+    function showReport(report, logs, citations) {
+      currentReport = report;
+      reportSect.style.display = 'block';
+      reportSkel.style.display = 'none';
+      reportEl.classList.remove('hidden');
+      reportEl.textContent = report;
+      reportActs.style.display = 'flex';
+
+      updateTimelineFromLogs(logs);
+      renderNewLogs(logs);
+      updateStats(logs, citations);
+      renderCitations(citations);
+      updateLlmBadge(report);
+
+      progressBar.style.width = '100%';
+      setStep('researcher', 'done');
+      setStep('writer', 'done');
+      setStep('editor', 'done');
+    }
+
+    /* ── Logs panel toggle ────────────────────────────────────────── */
+    function toggleLogs() {
+      const open = logsWrap.style.display === 'block';
+      logsWrap.style.display = open ? 'none' : 'block';
+      logsToggle.classList.toggle('open', !open);
+      logsToggle.setAttribute('aria-expanded', String(!open));
+    }
+    logsToggle.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleLogs(); }
+    });
+
+    /* ── Copy / Download ─────────────────────────────────────────── */
+    async function copyReport() {
+      if (!currentReport) return;
+      try {
+        await navigator.clipboard.writeText(currentReport);
+        const btn = document.getElementById('copy-btn');
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => btn.textContent = '📋 Copy', 2000);
+      } catch { showError('Clipboard access denied.'); }
+    }
+
+    function downloadReport() {
+      if (!currentReport) return;
+      const blob = new Blob([currentReport], { type: 'text/plain;charset=utf-8' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = `research-report-${Date.now()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    /* ── Security helpers — prevent XSS when inserting dynamic HTML ─ */
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+    function escapeAttr(str) {
+      // Safe for href attributes — strips javascript: and data: URIs
+      const s = String(str).trim();
+      if (/^(javascript|data|vbscript):/i.test(s)) return '#';
+      return s;
+    }
+
+    /* ── Keyboard: Ctrl+Enter submits ─────────────────────────────── */
+    queryInput.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') { runPipeline(); }
+    });
+  </script>
+</body>
+</html>

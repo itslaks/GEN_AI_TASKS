@@ -1,0 +1,5 @@
+transaction_id,user_id,product_id,quantity,transaction_date
+1001,1,101,1,2024-05-01
+1002,2,103,3,2024-05-02
+1003,1,102,2,2024-05-03
+1004,3,104,1,2024-05-04

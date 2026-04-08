@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NeuralGuard — Content Moderation</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #080b10;
+  --bg2:      #0d1117;
+  --bg3:      #131921;
+  --border:   #1e2832;
+  --glow:     #00ffe0;
+  --glow2:    #7b61ff;
+  --glow3:    #ff4d6d;
+  --glow4:    #ffb347;
+  --text:     #e2e8f0;
+  --muted:    #5a6a7e;
+  --approve:  #00e5a0;
+  --deny:     #ff4d6d;
+  --warn:     #ffb347;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Syne', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── Animated BG grid ── */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,224,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,224,.03) 1px, transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;z-index:0;
+}
+
+/* ── Floating orbs ── */
+.orb{
+  position:fixed;border-radius:50%;filter:blur(100px);pointer-events:none;z-index:0;
+  animation:drift 12s ease-in-out infinite alternate;
+}
+.orb1{width:400px;height:400px;background:rgba(0,255,224,.06);top:-100px;right:-100px;animation-delay:0s}
+.orb2{width:300px;height:300px;background:rgba(123,97,255,.06);bottom:-50px;left:-100px;animation-delay:4s}
+.orb3{width:200px;height:200px;background:rgba(255,77,109,.05);top:50%;left:50%;animation-delay:8s}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(40px,30px) scale(1.1)}}
+
+/* ── Layout ── */
+.wrapper{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 24px}
+
+/* ── Header ── */
+header{
+  border-bottom:1px solid var(--border);
+  padding:20px 0;
+  backdrop-filter:blur(20px);
+  position:sticky;top:0;z-index:100;
+  background:rgba(8,11,16,.85);
+}
+.header-inner{display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{
+  width:40px;height:40px;border-radius:10px;
+  background:linear-gradient(135deg,var(--glow),var(--glow2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;box-shadow:0 0 20px rgba(0,255,224,.3);
+}
+.logo-text{font-size:20px;font-weight:800;letter-spacing:-.5px}
+.logo-text span{color:var(--glow)}
+.header-badges{display:flex;gap:8px;align-items:center}
+.badge{
+  font-family:var(--mono);font-size:11px;padding:4px 10px;
+  border-radius:20px;border:1px solid var(--border);
+  background:var(--bg3);color:var(--muted);
+}
+.badge.live{border-color:rgba(0,229,160,.3);color:var(--approve);background:rgba(0,229,160,.05)}
+.live-dot{width:6px;height:6px;background:var(--approve);border-radius:50%;display:inline-block;margin-right:5px;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 4px var(--approve)}50%{opacity:.4;box-shadow:none}}
+
+/* ── Stats Row ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:28px 0}
+.stat-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:14px;
+  padding:18px 20px;position:relative;overflow:hidden;
+  transition:transform .2s,border-color .2s;cursor:default;
+}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--accent,var(--glow));opacity:.6;
+}
+.stat-card:hover{transform:translateY(-2px);border-color:rgba(0,255,224,.2)}
+.stat-card.deny-card{--accent:var(--deny)}
+.stat-card.warn-card{--accent:var(--warn)}
+.stat-card.ghost-card{--accent:var(--glow2)}
+.stat-label{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.stat-num{font-size:36px;font-weight:800;line-height:1;color:var(--accent,var(--glow))}
+.stat-sub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:4px;margin-bottom:24px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:4px;width:fit-content}
+.tab{
+  font-family:var(--sans);font-size:13px;font-weight:600;
+  padding:8px 18px;border-radius:9px;cursor:pointer;
+  border:none;background:transparent;color:var(--muted);
+  transition:all .2s;position:relative;
+}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--bg3);color:var(--glow);box-shadow:0 0 12px rgba(0,255,224,.1)}
+.tab-count{
+  font-family:var(--mono);font-size:10px;
+  background:rgba(0,255,224,.15);color:var(--glow);
+  border-radius:10px;padding:1px 6px;margin-left:6px;
+}
+.tab-count.red{background:rgba(255,77,109,.15);color:var(--deny)}
+
+/* ── Submit Panel ── */
+.submit-panel{
+  background:var(--bg2);border:1px solid var(--border);border-radius:16px;
+  padding:28px;margin-bottom:28px;
+}
+.panel-title{font-size:15px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px;color:var(--text)}
+.panel-title .icon{color:var(--glow);font-size:16px}
+.input-row{display:grid;grid-template-columns:1fr 200px;gap:12px;margin-bottom:12px}
+textarea{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-family:var(--mono);font-size:13px;
+  padding:14px;resize:vertical;min-height:90px;
+  transition:border-color .2s,box-shadow .2s;outline:none;width:100%;
+}
+textarea:focus{border-color:rgba(0,255,224,.4);box-shadow:0 0 0 3px rgba(0,255,224,.06)}
+.meta-col{display:flex;flex-direction:column;gap:8px}
+input[type=text]{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-family:var(--mono);font-size:13px;
+  padding:10px 14px;outline:none;transition:border-color .2s,box-shadow .2s;width:100%;
+}
+input[type=text]:focus{border-color:rgba(0,255,224,.4);box-shadow:0 0 0 3px rgba(0,255,224,.06)}
+.row-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.sample-btns{display:flex;gap:6px;flex-wrap:wrap}
+.sample-btn{
+  font-family:var(--mono);font-size:11px;padding:5px 10px;
+  border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;
+}
+.sample-btn:hover{border-color:var(--glow);color:var(--glow);background:rgba(0,255,224,.05)}
+.btn-primary{
+  font-family:var(--sans);font-weight:700;font-size:13px;
+  padding:10px 26px;border-radius:10px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--glow),var(--glow2));
+  color:#0a0f18;transition:all .2s;
+  box-shadow:0 0 20px rgba(0,255,224,.2);
+}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 30px rgba(0,255,224,.35)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.spinner{display:none;width:16px;height:16px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Result toast ── */
+.result-box{
+  border-radius:12px;padding:16px 20px;margin-top:14px;
+  border:1px solid;display:none;animation:slideIn .3s ease;
+  font-family:var(--mono);font-size:13px;
+}
+.result-box.approve{border-color:rgba(0,229,160,.3);background:rgba(0,229,160,.07);color:var(--approve)}
+.result-box.deny   {border-color:rgba(255,77,109,.3);background:rgba(255,77,109,.07);color:var(--deny)}
+.result-box.review {border-color:rgba(255,179,71,.3);background:rgba(255,179,71,.07);color:var(--warn)}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Queue / Completed cards ── */
+.section{display:none}
+.section.active{display:block}
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--muted);
+  font-family:var(--mono);font-size:13px;
+}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.3}
+
+.content-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:14px;
+  margin-bottom:14px;overflow:hidden;
+  transition:border-color .2s,transform .2s;
+  animation:cardIn .3s ease forwards;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.content-card:hover{border-color:rgba(0,255,224,.15);transform:translateY(-1px)}
+.card-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border)}
+.card-id{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.card-score-wrap{display:flex;align-items:center;gap:10px}
+.score-bar-bg{width:100px;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.score-bar{height:100%;border-radius:3px;transition:width .5s ease}
+.score-val{font-family:var(--mono);font-size:12px;font-weight:500}
+.card-body{padding:16px 20px}
+.content-text{
+  font-family:var(--mono);font-size:13px;color:var(--text);
+  background:var(--bg3);border-radius:8px;padding:12px 14px;
+  line-height:1.6;margin-bottom:12px;border-left:3px solid var(--border);
+  max-height:80px;overflow:hidden;position:relative;
+}
+.content-text.expanded{max-height:none}
+.expand-toggle{font-family:var(--mono);font-size:11px;color:var(--glow);cursor:pointer;margin-bottom:10px;display:inline-block}
+.reasons{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.reason-tag{
+  font-family:var(--mono);font-size:11px;padding:3px 9px;
+  border-radius:20px;background:rgba(255,77,109,.1);
+  border:1px solid rgba(255,77,109,.2);color:var(--deny);
+}
+.llm-box{
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;font-family:var(--mono);font-size:12px;
+  color:#a0b0c0;line-height:1.7;margin-bottom:14px;
+  border-left:3px solid rgba(123,97,255,.5);
+}
+.llm-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--glow2);margin-bottom:6px}
+.card-actions{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--border);background:rgba(0,0,0,.15)}
+.comment-input{
+  flex:1;background:var(--bg3);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-family:var(--mono);
+  font-size:12px;padding:8px 12px;outline:none;
+  transition:border-color .2s;
+}
+.comment-input:focus{border-color:rgba(0,255,224,.3)}
+.btn-approve,.btn-deny{
+  font-family:var(--sans);font-size:12px;font-weight:700;
+  padding:8px 18px;border-radius:8px;border:none;cursor:pointer;
+  transition:all .15s;white-space:nowrap;
+}
+.btn-approve{background:rgba(0,229,160,.15);border:1px solid rgba(0,229,160,.3);color:var(--approve)}
+.btn-approve:hover{background:rgba(0,229,160,.25);box-shadow:0 0 15px rgba(0,229,160,.2)}
+.btn-deny{background:rgba(255,77,109,.15);border:1px solid rgba(255,77,109,.3);color:var(--deny)}
+.btn-deny:hover{background:rgba(255,77,109,.25);box-shadow:0 0 15px rgba(255,77,109,.2)}
+
+/* ── Decision badges on completed ── */
+.decision-badge{
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  padding:4px 12px;border-radius:20px;
+}
+.decision-badge.approve{background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.3);color:var(--approve)}
+.decision-badge.deny   {background:rgba(255,77,109,.12);border:1px solid rgba(255,77,109,.3);color:var(--deny)}
+.route-tag{font-family:var(--mono);font-size:10px;color:var(--muted);padding:2px 8px;border-radius:4px;background:var(--bg3);border:1px solid var(--border)}
+
+/* ── Audit log modal ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.75);
+  backdrop-filter:blur(8px);z-index:200;display:none;
+  align-items:center;justify-content:center;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--bg2);border:1px solid var(--border);border-radius:16px;
+  padding:28px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;
+  animation:modalIn .25s ease;
+}
+@keyframes modalIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.modal-title{font-size:16px;font-weight:800;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1}
+.audit-entry{
+  display:flex;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:12px;
+}
+.audit-ts{color:var(--muted);white-space:nowrap;font-size:10px;padding-top:2px}
+.audit-node{color:var(--glow2);font-weight:500;min-width:80px}
+.audit-summary{color:var(--text);line-height:1.6}
+
+/* ── Score color util ── */
+.score-low{color:var(--approve)}
+.score-mid{color:var(--warn)}
+.score-high{color:var(--deny)}
+
+/* ── Notification toast ── */
+.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:300;display:flex;flex-direction:column;gap:8px}
+.toast{
+  font-family:var(--mono);font-size:12px;padding:12px 18px;
+  border-radius:10px;border:1px solid;
+  background:var(--bg2);backdrop-filter:blur(10px);
+  animation:toastIn .3s ease;min-width:220px;
+  display:flex;align-items:center;gap:8px;
+}
+.toast.success{border-color:rgba(0,229,160,.3);color:var(--approve)}
+.toast.error  {border-color:rgba(255,77,109,.3);color:var(--deny)}
+.toast.info   {border-color:rgba(0,255,224,.3);color:var(--glow)}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(20px)}}
+
+/* ── Responsive ── */
+@media(max-width:700px){
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .input-row{grid-template-columns:1fr}
+  .header-badges{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<!-- Header -->
+<header>
+  <div class="wrapper header-inner">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">Neural<span>Guard</span></div>
+    </div>
+    <div class="header-badges">
+      <span class="badge"><span class="live-dot"></span>Live</span>
+      <span class="badge">LLM: Groq / Mistral</span>
+      <span class="badge">HITL Workflow</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrapper" style="padding-top:28px;padding-bottom:60px">
+
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="stat-label">Pending Review</div><div class="stat-num" id="sPending">0</div><div class="stat-sub">Awaiting human</div></div>
+    <div class="stat-card deny-card"><div class="stat-label">Auto-Denied</div><div class="stat-num" id="sAutoDeny">0</div><div class="stat-sub">High score</div></div>
+    <div class="stat-card" style="--accent:var(--approve)"><div class="stat-label">Auto-Approved</div><div class="stat-num" id="sAutoApprove">0</div><div class="stat-sub">Low score</div></div>
+    <div class="stat-card ghost-card"><div class="stat-label">Human-Reviewed</div><div class="stat-num" id="sHuman">0</div><div class="stat-sub">Total processed</div></div>
+  </div>
+
+  <!-- Submit Panel -->
+  <div class="submit-panel">
+    <div class="panel-title"><span class="icon">⟶</span> Submit Content for Moderation</div>
+    <div class="input-row">
+      <textarea id="contentText" placeholder="Paste or type content to moderate…" rows="4"></textarea>
+      <div class="meta-col">
+        <input type="text" id="contentId" placeholder="content-id (auto)"/>
+        <input type="text" id="contentSource" placeholder="source (e.g. user-123)"/>
+        <input type="text" id="contentCategory" placeholder="category (optional)"/>
+      </div>
+    </div>
+    <div class="row-footer">
+      <div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:6px">QUICK SAMPLES:</div>
+        <div class="sample-btns">
+          <button class="sample-btn" onclick="setSample('safe')">✓ Safe text</button>
+          <button class="sample-btn" onclick="setSample('borderline')">⚠ Borderline</button>
+          <button class="sample-btn" onclick="setSample('toxic')">✕ Toxic</button>
+          <button class="sample-btn" onclick="setSample('spam')">📧 Spam</button>
+          <button class="sample-btn" onclick="setSample('threat')">🔴 Threat</button>
+        </div>
+      </div>
+      <button class="btn-primary" id="submitBtn" onclick="submitContent()">
+        <span class="spinner" id="submitSpinner"></span> Analyze Content
+      </button>
+    </div>
+    <div class="result-box" id="resultBox"></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('queue',this)">
+      Review Queue <span class="tab-count red" id="queueCount">0</span>
+    </button>
+    <button class="tab" onclick="switchTab('completed',this)">
+      Completed <span class="tab-count" id="completedCount">0</span>
+    </button>
+  </div>
+
+  <!-- Queue Section -->
+  <div class="section active" id="section-queue">
+    <div id="queueList"></div>
+  </div>
+
+  <!-- Completed Section -->
+  <div class="section" id="section-completed">
+    <div id="completedList"></div>
+  </div>
+
+</div>
+
+<!-- Audit Modal -->
+<div class="modal-overlay" id="auditModal">
+  <div class="modal">
+    <div class="modal-title">
+      Audit Trail
+      <button class="modal-close" onclick="closeAudit()">✕</button>
+    </div>
+    <div id="auditContent"></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+const SAMPLES = {
+  safe:       { text: "I really enjoyed the new documentary about marine biology. The coral reef segment was breathtaking!", source:"user-001", category:"comment" },
+  borderline: { text: "This product is damn overpriced. I hate that they keep spamming my inbox. Kind of want to complain.", source:"user-042", category:"review" },
+  toxic:      { text: "I hate these racist bigots. They should be killed. This is absolute garbage content.", source:"user-999", category:"post" },
+  spam:       { text: "FREE MONEY! Click here NOW to claim your prize winner reward. Buy now limited offer!", source:"bot-001", category:"ad" },
+  threat:     { text: "You will pay for this. I know where you live and I will hurt you if you don't comply.", source:"anon-007", category:"message" },
+};
+
+function setSample(key){
+  const s=SAMPLES[key];
+  document.getElementById('contentText').value=s.text;
+  document.getElementById('contentSource').value=s.source;
+  document.getElementById('contentCategory').value=s.category;
+  document.getElementById('contentId').value='';
+}
+
+function scoreColor(s){ return s<0.3?'score-low':s<0.7?'score-mid':'score-high' }
+function scoreBarColor(s){ return s<0.3?'var(--approve)':s<0.7?'var(--warn)':'var(--deny)' }
+
+function showToast(msg,type='info',dur=3200){
+  const w=document.getElementById('toastWrap');
+  const el=document.createElement('div');
+  const icons={success:'✓',error:'✕',info:'●'};
+  el.className=`toast ${type}`;
+  el.innerHTML=`<span>${icons[type]||'●'}</span><span>${msg}</span>`;
+  w.appendChild(el);
+  setTimeout(()=>{el.style.animation='toastOut .3s ease forwards';setTimeout(()=>el.remove(),300)},dur);
+}
+
+async function submitContent(){
+  const text=document.getElementById('contentText').value.trim();
+  if(!text){showToast('Content text is required','error');return;}
+  const btn=document.getElementById('submitBtn');
+  const sp=document.getElementById('submitSpinner');
+  btn.disabled=true;sp.style.display='inline-block';
+  const payload={
+    text,
+    id:document.getElementById('contentId').value||undefined,
+    metadata:{
+      source:document.getElementById('contentSource').value||'unknown',
+      category:document.getElementById('contentCategory').value||'general',
+    }
+  };
+  try{
+    const resp=await fetch('/api/moderate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await resp.json();
+    showResult(data);
+    document.getElementById('contentText').value='';
+    await refresh();
+  }catch(e){showToast('Request failed: '+e.message,'error')}
+  btn.disabled=false;sp.style.display='none';
+}
+
+function showResult(data){
+  const box=document.getElementById('resultBox');
+  box.style.display='block';
+  if(data.status==='pending_review'){
+    box.className='result-box review';
+    box.innerHTML=`⚠ Queued for human review — review_id: ${data.review_id}<br>score: ${data.score?.toFixed(3)} | patterns: ${(data.reasons||[]).join(', ')||'none'}`;
+    showToast('Sent to review queue','info');
+    switchTab('queue',document.querySelector('.tab'));
+  }else if(data.final_decision==='approve'){
+    box.className='result-box approve';
+    box.innerHTML=`✓ Auto-approved — ${data.route} | score: ${data.score?.toFixed(3)}`;
+    showToast('Auto-approved','success');
+  }else if(data.final_decision==='deny'){
+    box.className='result-box deny';
+    box.innerHTML=`✕ Auto-denied — ${data.route} | score: ${data.score?.toFixed(3)} | ${(data.reasons||[]).join(', ')}`;
+    showToast('Auto-denied','error');
+  }else{
+    box.className='result-box review';
+    box.innerHTML=`<pre>${JSON.stringify(data,null,2)}</pre>`;
+  }
+  setTimeout(()=>box.style.display='none',8000);
+}
+
+async function refresh(){
+  const [q,c,s]=await Promise.all([
+    fetch('/api/queue').then(r=>r.json()),
+    fetch('/api/completed').then(r=>r.json()),
+    fetch('/api/stats').then(r=>r.json()),
+  ]);
+  renderQueue(q.queue||[]);
+  renderCompleted(c.completed||[]);
+  updateStats(s);
+}
+
+function updateStats(s){
+  document.getElementById('sPending').textContent=s.pending_review||0;
+  document.getElementById('sAutoDeny').textContent=s.auto_denied||0;
+  document.getElementById('sAutoApprove').textContent=s.auto_approved||0;
+  document.getElementById('sHuman').textContent=s.human_reviewed||0;
+  document.getElementById('queueCount').textContent=s.pending_review||0;
+  document.getElementById('completedCount').textContent=s.total_completed||0;
+}
+
+function renderQueue(items){
+  const el=document.getElementById('queueList');
+  if(!items.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🛡️</div>No items awaiting review<br>Submit content above to see it here</div>`;
+    return;
+  }
+  el.innerHTML=items.map((it,i)=>{
+    const sc=it.score||0;
+    const barW=Math.round(sc*100);
+    return `
+    <div class="content-card" style="animation-delay:${i*.05}s">
+      <div class="card-header">
+        <div>
+          <div class="card-id">ID: ${it.content_id||'—'} | review: ${it.review_id}</div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px">src: ${it.metadata?.source||'?'} · cat: ${it.metadata?.category||'?'}</div>
+        </div>
+        <div class="card-score-wrap">
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:3px">RISK SCORE</div>
+            <div class="score-bar-bg"><div class="score-bar" style="width:${barW}%;background:${scoreBarColor(sc)}"></div></div>
+          </div>
+          <span class="score-val ${scoreColor(sc)}">${sc.toFixed(3)}</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="content-text" id="ct-${it.review_id}">${escHtml(it.text)}</div>
+        ${it.text.length>120?`<span class="expand-toggle" onclick="toggleExpand('ct-${it.review_id}',this)">Show more ↓</span>`:''}
+        ${it.reasons?.length?`<div class="reasons">${it.reasons.map(r=>`<span class="reason-tag">${r}</span>`).join('')}</div>`:''}
+        ${it.llm_analysis?`
+        <div class="llm-box">
+          <div class="llm-label">🤖 LLM Analysis (Groq / Mistral)</div>
+          ${escHtml(it.llm_analysis)}
+        </div>`:''}
+        <button onclick='showAudit(${JSON.stringify(it.audit_log)})' style="font-family:var(--mono);font-size:11px;background:none;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;cursor:pointer;">View Audit Trail</button>
+      </div>
+      <div class="card-actions">
+        <input class="comment-input" id="cmt-${it.review_id}" placeholder="Add comment (optional)…"/>
+        <button class="btn-approve" onclick="decide('${it.review_id}','approve')">✓ Approve</button>
+        <button class="btn-deny" onclick="decide('${it.review_id}','deny')">✕ Deny</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCompleted(items){
+  const el=document.getElementById('completedList');
+  if(!items.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div>No completed items yet</div>`;
+    return;
+  }
+  const sorted=[...items].reverse();
+  el.innerHTML=sorted.map((it,i)=>{
+    const sc=it.score||0;
+    const barW=Math.round(sc*100);
+    return `
+    <div class="content-card" style="animation-delay:${i*.04}s">
+      <div class="card-header">
+        <div>
+          <div class="card-id">ID: ${it.content_id||'—'}</div>
+          <div style="margin-top:4px;display:flex;gap:6px;align-items:center">
+            <span class="route-tag">${it.route}</span>
+            ${it.human_decision?`<span style="font-family:var(--mono);font-size:10px;color:var(--muted)">human: ${it.human_decision}</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="card-score-wrap">
+            <div class="score-bar-bg"><div class="score-bar" style="width:${barW}%;background:${scoreBarColor(sc)}"></div></div>
+            <span class="score-val ${scoreColor(sc)}">${sc.toFixed(3)}</span>
+          </div>
+          <span class="decision-badge ${it.final_decision==='approve'?'approve':'deny'}">${it.final_decision==='approve'?'✓ APPROVED':'✕ DENIED'}</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="content-text" id="cmp-${it.content_id}">${escHtml(it.text)}</div>
+        ${it.human_comment?`<div style="font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:8px">💬 ${escHtml(it.human_comment)}</div>`:''}
+        ${it.llm_analysis?`<div class="llm-box" style="margin-top:10px"><div class="llm-label">🤖 LLM Analysis</div>${escHtml(it.llm_analysis)}</div>`:''}
+        <button onclick='showAudit(${JSON.stringify(it.audit_log)})' style="font-family:var(--mono);font-size:11px;background:none;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;cursor:pointer;margin-top:8px">View Audit Trail</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleExpand(id,btn){
+  const el=document.getElementById(id);
+  if(el.classList.contains('expanded')){el.classList.remove('expanded');btn.textContent='Show more ↓'}
+  else{el.classList.add('expanded');btn.textContent='Show less ↑'}
+}
+
+async function decide(reviewId, decision){
+  const comment=document.getElementById('cmt-'+reviewId)?.value||'';
+  try{
+    const resp=await fetch(`/api/review/${reviewId}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({decision,comment})
+    });
+    const data=await resp.json();
+    if(resp.ok){
+      showToast(`Decision submitted: ${decision}`  , decision==='approve'?'success':'error');
+      await refresh();
+    }else{
+      showToast(data.error||'Error','error');
+    }
+  }catch(e){showToast('Failed: '+e.message,'error')}
+}
+
+function showAudit(log){
+  const modal=document.getElementById('auditModal');
+  const content=document.getElementById('auditContent');
+  if(!log||!log.length){content.innerHTML='<p style="color:var(--muted);font-family:var(--mono);font-size:12px">No audit entries.</p>';modal.classList.add('open');return;}
+  content.innerHTML=log.map(e=>`
+    <div class="audit-entry">
+      <div class="audit-ts">${new Date(e.ts).toLocaleTimeString()}</div>
+      <div class="audit-node">${e.node}</div>
+      <div class="audit-summary">${escHtml(e.summary)}</div>
+    </div>`).join('');
+  modal.classList.add('open');
+}
+function closeAudit(){document.getElementById('auditModal').classList.remove('open')}
+document.getElementById('auditModal').addEventListener('click',function(e){if(e.target===this)closeAudit()})
+
+function switchTab(name, btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('section-'+name).classList.add('active');
+}
+
+function escHtml(t){
+  return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Auto-refresh every 6 seconds
+refresh();
+setInterval(refresh, 6000);
+</script>
+</body>
+</html>

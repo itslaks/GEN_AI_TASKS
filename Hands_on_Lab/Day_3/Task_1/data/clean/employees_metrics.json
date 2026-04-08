@@ -1,0 +1,25 @@
+{
+  "raw_rows": 100,
+  "raw_cols": 6,
+  "duplicates_removed": 0,
+  "rows_dropped_null": 0,
+  "clean_rows": 100,
+  "null_counts": {
+    "id": 0,
+    "full_name": 0,
+    "age": 0,
+    "salary": 0,
+    "join_date": 0,
+    "department": 0
+  },
+  "schema": {
+    "id": "int64",
+    "full_name": "object",
+    "age": "int64",
+    "salary": "int64",
+    "join_date": "datetime64[ns]",
+    "department": "object"
+  },
+  "warnings": [],
+  "errors": []
+}

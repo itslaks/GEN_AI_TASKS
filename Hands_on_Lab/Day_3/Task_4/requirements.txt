@@ -1,0 +1,15 @@
+flask
+flask-cors
+flask-limiter
+python-dotenv
+groq
+langgraph
+langchain
+langchain-groq
+langchain-community
+chromadb
+sentence-transformers
+requests
+beautifulsoup4
+lxml
+pydantic

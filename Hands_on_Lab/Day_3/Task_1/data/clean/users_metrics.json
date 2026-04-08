@@ -1,0 +1,23 @@
+{
+  "raw_rows": 4,
+  "raw_cols": 5,
+  "duplicates_removed": 0,
+  "rows_dropped_null": 0,
+  "clean_rows": 4,
+  "null_counts": {
+    "user_id": 0,
+    "name": 0,
+    "email": 0,
+    "city": 0,
+    "signup_date": 0
+  },
+  "schema": {
+    "user_id": "int64",
+    "name": "object",
+    "email": "object",
+    "city": "object",
+    "signup_date": "datetime64[ns]"
+  },
+  "warnings": [],
+  "errors": []
+}

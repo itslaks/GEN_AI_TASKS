@@ -1,0 +1,21 @@
+{
+  "raw_rows": 4,
+  "raw_cols": 4,
+  "duplicates_removed": 0,
+  "rows_dropped_null": 0,
+  "clean_rows": 4,
+  "null_counts": {
+    "product_id": 0,
+    "product_name": 0,
+    "category": 0,
+    "price": 0
+  },
+  "schema": {
+    "product_id": "int64",
+    "product_name": "object",
+    "category": "object",
+    "price": "int64"
+  },
+  "warnings": [],
+  "errors": []
+}

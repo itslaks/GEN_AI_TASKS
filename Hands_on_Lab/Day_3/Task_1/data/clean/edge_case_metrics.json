@@ -1,0 +1,22 @@
+{
+  "raw_rows": 5,
+  "raw_cols": 3,
+  "duplicates_removed": 1,
+  "rows_dropped_null": 1,
+  "clean_rows": 3,
+  "null_counts": {
+    "id": 0,
+    "value": 0,
+    "label": 1
+  },
+  "schema": {
+    "id": "float64",
+    "value": "float64",
+    "label": "object"
+  },
+  "warnings": [
+    "Dropped 1 rows (>50% null)",
+    "Filled 1 nulls in 'value' with median=21.75"
+  ],
+  "errors": []
+}

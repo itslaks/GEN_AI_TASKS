@@ -1,0 +1,29 @@
+{
+  "raw_rows": 80,
+  "raw_cols": 6,
+  "duplicates_removed": 0,
+  "rows_dropped_null": 0,
+  "clean_rows": 80,
+  "null_counts": {
+    "order_id": 0,
+    "customer_name": 0,
+    "amount_": 0,
+    "count": 0,
+    "order_date": 0,
+    "status": 26
+  },
+  "schema": {
+    "order_id": "int64",
+    "customer_name": "object",
+    "amount_": "float64",
+    "count": "int64",
+    "order_date": "datetime64[ns]",
+    "status": "object"
+  },
+  "warnings": [
+    "Filled 12 nulls in 'amount_' with median=2537.50"
+  ],
+  "errors": [
+    "QC2 FAIL: 'count' has 13 negative values"
+  ]
+}

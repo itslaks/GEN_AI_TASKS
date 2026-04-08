@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Router AI</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600&family=Inter:wght@400;500;600&display=swap');
+        
+        :root {
+            --bg-color: #0b0f19;
+            --surface-color: rgba(15, 23, 42, 0.6);
+            --sidebar-color: rgba(15, 23, 42, 0.8);
+            --primary-glow: #8A2BE2;
+            --secondary-glow: #00FFFF;
+            --accent-color: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --route-positive: #10b981;
+            --route-negative: #f43f5e;
+            --route-neutral: #0ea5e9;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Animated Blobs */
+        .ambient-blob {
+            position: absolute;
+            filter: blur(100px);
+            z-index: -1;
+            opacity: 0.5;
+            animation: float 20s infinite ease-in-out alternate;
+        }
+        .blob-1 {
+            width: 400px; height: 400px;
+            background: rgba(138, 43, 226, 0.4);
+            top: -10%; left: -10%;
+        }
+        .blob-2 {
+            width: 500px; height: 500px;
+            background: rgba(0, 255, 255, 0.2);
+            bottom: -20%; right: -10%;
+            animation-delay: -5s;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(100px, 50px) scale(1.1); }
+        }
+
+        /* Sidebar Layout */
+        .sidebar {
+            width: 320px;
+            background: var(--sidebar-color);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            z-index: 10;
+        }
+
+        .sidebar h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            margin: 0 0 24px 0;
+            background: linear-gradient(45deg, var(--text-main), var(--secondary-glow));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-right: 8px;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+        .history-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid transparent;
+            padding: 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .history-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--border-color);
+        }
+        .history-item .preview {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+        .history-item .meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+        .clear-btn {
+            margin-top: 16px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .clear-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-main); }
+
+        /* Main Panel */
+        .main-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--surface-color);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .input-group { position: relative; margin-bottom: 1.5rem; }
+
+        textarea {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 120px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+        textarea:focus { outline: none; border-color: rgba(0, 255, 255, 0.4); box-shadow: 0 0 15px rgba(0, 255, 255, 0.1); }
+        .shortcut-hint {
+            position: absolute;
+            bottom: -24px;
+            right: 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        button.primary {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(45deg, #1e293b, #334155);
+            color: var(--text-main);
+            font-size: 1.1rem;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+        button.primary:hover {
+            background: linear-gradient(45deg, #334155, #475569);
+            box-shadow: inset 0 0 0 1px rgba(0, 255, 255, 0.3), 0 0 20px rgba(0, 255, 255, 0.2);
+        }
+        button.primary:active { transform: translateY(2px); }
+
+        button.loading { pointer-events: none; color: transparent; }
+        button.loading::after {
+            content: '';
+            position: absolute;
+            width: 24px; height: 24px;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: var(--secondary-glow);
+            animation: spin 1s linear infinite;
+        }
+
+        /* Results Area */
+        .results {
+            margin-top: 3rem;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .results.visible { display: block; animation: fadeIn 0.5s ease forwards; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            padding: 20px 16px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        .stat-value { font-size: 1.2rem; font-weight: 600; text-align: center; }
+
+        /* Progress Ring */
+        .progress-ring { position: relative; width: 60px; height: 60px; }
+        .progress-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .progress-ring circle {
+            fill: transparent;
+            stroke-width: 4;
+            stroke: rgba(255,255,255,0.1);
+        }
+        .progress-ring .progress {
+            stroke: var(--secondary-glow);
+            stroke-dasharray: 176; /* 2 * pi * r (28) */
+            stroke-dashoffset: 176;
+            transition: stroke-dashoffset 1s ease-in-out;
+            stroke-linecap: round;
+        }
+        .progress-text {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .route-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .route-POSITIVE { color: var(--route-positive); box-shadow: 0 0 15px rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.3); }
+        .route-NEGATIVE { color: var(--route-negative); box-shadow: 0 0 15px rgba(244,63,94,0.2); border: 1px solid rgba(244,63,94,0.3); }
+        .route-NEUTRAL { color: var(--route-neutral); box-shadow: 0 0 15px rgba(14,165,233,0.2); border: 1px solid rgba(14,165,233,0.3); }
+
+        .response-box {
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            padding: 24px;
+            border-radius: 16px;
+            line-height: 1.7;
+            font-size: 1.05rem;
+            min-height: 100px;
+        }
+        .response-box::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0; width: 4px;
+            background: linear-gradient(to bottom, var(--primary-glow), var(--secondary-glow));
+            border-radius: 4px 0 0 4px;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 16px; right: 16px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: var(--text-main);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover { background: rgba(255,255,255,0.2); }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: rgba(244, 63, 94, 0.9);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .toast.show { transform: translateX(0); }
+
+        @keyframes spin { 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+        @keyframes fadeIn { to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-blob blob-1"></div>
+    <div class="ambient-blob blob-2"></div>
+
+    <!-- Sidebar for History -->
+    <div class="sidebar">
+        <h2>Session History</h2>
+        <div class="history-list" id="historyList">
+            <!-- Items injected by JS -->
+        </div>
+        <button class="clear-btn" onclick="clearHistory()">Clear History</button>
+    </div>
+
+    <!-- Toast Notifications Area -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Main Content -->
+    <div class="main-panel">
+        <div class="container">
+            <h1 style="font-family: 'Space Grotesk', sans-serif; font-size: 2rem; margin-bottom: 2rem; background: linear-gradient(45deg, #fff, #00ffff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Router AI Analysis</h1>
+            
+            <div class="input-group">
+                <textarea id="queryInput" placeholder="Enter your query here to be analyzed..." autofocus></textarea>
+                <div class="shortcut-hint">Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to analyze</div>
+            </div>
+            
+            <button id="analyzeBtn" class="primary" onclick="analyzeQuery()">Analyze & Route</button>
+
+            <div class="results" id="resultContainer">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">Sentiment</span>
+                        <span class="stat-value" id="resSentiment">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Confidence</span>
+                        <div class="progress-ring">
+                            <svg>
+                                <circle cx="30" cy="30" r="28"></circle>
+                                <circle class="progress" id="scoreProgress" cx="30" cy="30" r="28"></circle>
+                            </svg>
+                            <div class="progress-text" id="resScore">0%</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Vector Route</span>
+                        <span class="stat-value"><span id="resRoute" class="route-badge"></span></span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Latency (ms)</span>
+                        <span class="stat-value" id="resTime">-</span>
+                    </div>
+                </div>
+
+                <div class="response-box">
+                    <button class="copy-btn" onclick="copyResponse()">Copy</button>
+                    <div class="stat-label" style="margin-bottom: 12px; color: var(--secondary-glow);">AI Psychological Breakdown</div>
+                    <div id="resText"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let chatHistory = JSON.parse(localStorage.getItem('router_ai_history')) || [];
+        let aiResponseTextFull = "";
+        
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            renderHistory();
+            
+            // Ctrl+Enter listener
+            document.getElementById('queryInput').addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    analyzeQuery();
+                }
+            });
+        });
+
+        // Toast Notification System
+        function showToast(message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = "⚠️ " + message;
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            // Remove after 4 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            list.innerHTML = "";
+            chatHistory.forEach((msg, idx) => {
+                if(msg.role === 'user'){
+                    const el = document.createElement('div');
+                    el.className = 'history-item';
+                    el.innerHTML = `
+                        <div class="preview">${msg.content}</div>
+                        <div class="meta">
+                            <span>You</span>
+                            <span>#${Math.floor(idx/2)+1}</span>
+                        </div>
+                    `;
+                    el.onclick = () => {
+                        document.getElementById('queryInput').value = msg.content;
+                    };
+                    list.appendChild(el);
+                }
+            });
+        }
+
+        function clearHistory() {
+            chatHistory = [];
+            localStorage.setItem('router_ai_history', JSON.stringify([]));
+            renderHistory();
+            showToast("Session history cleared");
+        }
+
+        function copyResponse() {
+            if(!aiResponseTextFull) return;
+            navigator.clipboard.writeText(aiResponseTextFull).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                const origTxt = btn.textContent;
+                btn.textContent = "Copied!";
+                setTimeout(() => btn.textContent = origTxt, 2000);
+            });
+        }
+
+        async function analyzeQuery() {
+            const inputEl = document.getElementById('queryInput');
+            const query = inputEl.value;
+            const btn = document.getElementById('analyzeBtn');
+            const resultContainer = document.getElementById('resultContainer');
+            
+            if (!query.trim()) return;
+
+            btn.classList.add('loading');
+            resultContainer.classList.remove('visible');
+
+            try {
+                const response = await fetch('/api/process', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query, history: chatHistory })
+                });
+
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                const data = await response.json();
+                
+                if (data.errors && data.errors.length > 0) {
+                    data.errors.forEach(err => showToast(err));
+                }
+
+                // Update Session History
+                chatHistory.push({ role: "user", content: query });
+                chatHistory.push({ role: "assistant", content: data.response_text || "" });
+                localStorage.setItem('router_ai_history', JSON.stringify(chatHistory));
+                renderHistory();
+                
+                // Update basic stats
+                document.getElementById('resSentiment').textContent = data.sentiment_label || 'N/A';
+                
+                // Animate progress ring
+                const rawScoreEl = document.getElementById('resScore');
+                const progressCircle = document.getElementById('scoreProgress');
+                if (data.sentiment_score) {
+                    const pct = Math.round(data.sentiment_score * 100);
+                    rawScoreEl.textContent = `${pct}%`;
+                    const offset = 176 - (176 * pct) / 100;
+                    progressCircle.style.strokeDashoffset = offset;
+                    
+                    // Color based on route
+                    const colors = { 'POSITIVE': 'var(--route-positive)', 'NEGATIVE': 'var(--route-negative)', 'NEUTRAL': 'var(--route-neutral)' };
+                    progressCircle.style.stroke = colors[data.route] || 'var(--route-neutral)';
+                } else {
+                    rawScoreEl.textContent = '0%';
+                    progressCircle.style.strokeDashoffset = 176;
+                }
+                
+                const routeEl = document.getElementById('resRoute');
+                routeEl.textContent = data.route;
+                routeEl.className = `route-badge route-${data.route}`;
+                
+                document.getElementById('resTime').textContent = data.metrics?.total_time_ms || '-';
+                
+                // Typewriter effect initialization
+                const textEl = document.getElementById('resText');
+                textEl.innerHTML = "";
+                aiResponseTextFull = data.response_text || '';
+                
+                resultContainer.classList.add('visible');
+                
+                // Run typewriter
+                let i = 0;
+                let charArray = aiResponseTextFull.split('');
+                function typeChar() {
+                    if (i < charArray.length) {
+                        if (charArray[i] === '\n') {
+                            textEl.innerHTML += '<br>';
+                        } else {
+                            textEl.innerHTML += charArray[i];
+                        }
+                        i++;
+                        setTimeout(typeChar, 10);
+                    }
+                }
+                typeChar();
+
+            } catch (err) {
+                console.error(err);
+                showToast(err.message || "An error occurred connecting to the backend.");
+            } finally {
+                btn.classList.remove('loading');
+            }
+        }
+    </script>
+</body>
+</html>
