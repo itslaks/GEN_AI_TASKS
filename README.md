@@ -224,4 +224,4 @@ Each task has its own `requirements.txt` and detailed README with setup instruct
 
 ---
 
-_Built with ❤️ as part of a Generative AI course by Lakshan_
+_Built with ❤️ by Lakshan_
