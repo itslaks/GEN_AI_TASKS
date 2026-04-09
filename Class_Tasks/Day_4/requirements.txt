@@ -1,0 +1,11 @@
+flask
+openai
+python-dotenv
+pdfplumber
+python-docx
+pandas
+openpyxl
+fpdf2
+httpx
+pyyaml
+dicttoxml

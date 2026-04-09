@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AgriSage — AI Farming Assistant</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --soil:     #1a1208;
+    --bark:     #2b1d0e;
+    --moss:     #1e2d10;
+    --leaf:     #3a5c1a;
+    --sprout:   #5a9e2f;
+    --lime:     #8ecb3c;
+    --rain:     #4fc3f7;
+    --sky:      #1a3a4a;
+    --mist:     #a8d8b0;
+    --petal:    #f9e07a;
+    --rust:     #c0622b;
+    --cream:    #f5f0e0;
+    --text:     #e8f0d8;
+    --muted:    #8aaa6a;
+    --card:     rgba(30,45,16,0.7);
+    --border:   rgba(90,158,47,0.25);
+    --glow:     rgba(142,203,60,0.12);
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    background: var(--soil);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── Animated Background ──────────────────────────────────── */
+  #bg-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  /* Floating leaves */
+  .leaf-fall {
+    position: absolute;
+    top: -60px;
+    width: 18px;
+    height: 18px;
+    opacity: 0;
+    animation: leafFall linear infinite;
+  }
+  .leaf-fall svg { width: 100%; height: 100%; }
+
+  @keyframes leafFall {
+    0%   { opacity: 0; transform: translateY(0) rotate(0deg) translateX(0); }
+    10%  { opacity: 0.7; }
+    90%  { opacity: 0.4; }
+    100% { opacity: 0; transform: translateY(110vh) rotate(720deg) translateX(80px); }
+  }
+
+  /* Rain drops */
+  .raindrop {
+    position: absolute;
+    top: -20px;
+    width: 1.5px;
+    background: linear-gradient(to bottom, transparent, var(--rain));
+    opacity: 0;
+    animation: rainFall linear infinite;
+  }
+  @keyframes rainFall {
+    0%   { opacity: 0; transform: translateY(0) skewX(-15deg); }
+    10%  { opacity: 0.4; }
+    90%  { opacity: 0.2; }
+    100% { opacity: 0; transform: translateY(110vh) skewX(-15deg); }
+  }
+
+  /* Ground mist */
+  .mist-band {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 120px;
+    background: linear-gradient(to top, rgba(168,216,176,0.06) 0%, transparent 100%);
+    animation: mistSway 8s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 0;
+  }
+  @keyframes mistSway {
+    0%   { transform: scaleX(1) translateX(0); opacity: 0.5; }
+    100% { transform: scaleX(1.05) translateX(10px); opacity: 1; }
+  }
+
+  /* Fireflies */
+  .firefly {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--petal);
+    opacity: 0;
+    animation: fireflyGlow ease-in-out infinite;
+  }
+  @keyframes fireflyGlow {
+    0%,100% { opacity: 0; transform: translate(0, 0); }
+    25%      { opacity: 0.9; }
+    50%      { opacity: 0.3; transform: translate(20px, -30px); }
+    75%      { opacity: 0.8; }
+  }
+
+  /* ── Layout ───────────────────────────────────────────────── */
+  #app {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 16px 80px;
+  }
+
+  /* ── Hero ─────────────────────────────────────────────────── */
+  #hero {
+    text-align: center;
+    padding: 64px 16px 40px;
+    position: relative;
+  }
+
+  .hero-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    position: relative;
+    animation: plantGrow 2s ease-out forwards;
+  }
+  @keyframes plantGrow {
+    0%   { transform: scale(0) rotate(-10deg); opacity: 0; }
+    60%  { transform: scale(1.1) rotate(2deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  .hero-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 0 12px rgba(142,203,60,0.5)); }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    background: linear-gradient(135deg, var(--lime) 0%, var(--mist) 50%, var(--petal) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: fadeUp 0.8s 0.3s both;
+  }
+
+  .tagline {
+    margin-top: 10px;
+    font-size: 1.05rem;
+    color: var(--muted);
+    animation: fadeUp 0.8s 0.5s both;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    padding: 6px 16px;
+    border-radius: 99px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--muted);
+    animation: fadeUp 0.8s 0.7s both;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.4s;
+  }
+  .status-dot.ready   { background: var(--lime); box-shadow: 0 0 6px var(--lime); animation: pulse 2s infinite; }
+  .status-dot.loading { background: var(--petal); box-shadow: 0 0 6px var(--petal); animation: spin-dot 1s linear infinite; }
+  .status-dot.error   { background: var(--rust); }
+  @keyframes pulse     { 0%,100%{ transform:scale(1); opacity:1; } 50%{ transform:scale(1.4); opacity:0.6; } }
+  @keyframes spin-dot  { 0%{ transform:rotate(0); } 100%{ transform:rotate(360deg); } }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Cards / Panels ───────────────────────────────────────── */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    backdrop-filter: blur(12px);
+    margin-bottom: 16px;
+    animation: fadeUp 0.6s both;
+  }
+  .panel-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--sprout);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-title svg { width: 14px; height: 14px; }
+
+  /* ── Form Grid ────────────────────────────────────────────── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 580px) { .form-grid { grid-template-columns: 1fr; } }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  input, select, textarea {
+    background: rgba(0,0,0,0.35);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.88rem;
+    padding: 9px 12px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--sprout);
+    box-shadow: 0 0 0 3px rgba(90,158,47,0.15);
+  }
+  select option { background: #1e2d10; }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* ── Ingest Section ───────────────────────────────────────── */
+  .ingest-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.3s, background 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .ingest-zone:hover {
+    border-color: var(--sprout);
+    background: var(--glow);
+  }
+  .ingest-zone.drag-over {
+    border-color: var(--lime);
+    background: rgba(142,203,60,0.1);
+  }
+  .ingest-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+  .ingest-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+    display: block;
+    filter: grayscale(0.3);
+  }
+  .ingest-hint {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .ingest-list {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .ingest-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    color: var(--mist);
+  }
+  .ingest-item .remove-btn {
+    background: none;
+    border: none;
+    color: var(--rust);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 0 0 4px;
+    line-height: 1;
+  }
+
+  /* ── Buttons ─────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 22px;
+    border-radius: 10px;
+    border: none;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+    font-family: inherit;
+    letter-spacing: 0.02em;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--leaf), var(--sprout));
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(58,92,26,0.6);
+  }
+  .btn-primary:hover:not(:disabled) {
+    box-shadow: 0 6px 24px rgba(90,158,47,0.5);
+    transform: translateY(-1px);
+  }
+
+  .btn-ingest {
+    background: linear-gradient(135deg, var(--sky), #1d6a8a);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(26,58,74,0.6);
+    width: 100%;
+    margin-top: 14px;
+  }
+  .btn-ingest:hover:not(:disabled) {
+    box-shadow: 0 6px 24px rgba(79,195,247,0.3);
+    transform: translateY(-1px);
+  }
+
+  .btn-ask {
+    background: linear-gradient(135deg, var(--sprout), var(--lime));
+    color: var(--soil);
+    box-shadow: 0 4px 16px rgba(90,158,47,0.45);
+    width: 100%;
+    font-size: 0.95rem;
+  }
+  .btn-ask:hover:not(:disabled) {
+    box-shadow: 0 6px 24px rgba(142,203,60,0.5);
+    transform: translateY(-1px);
+  }
+
+  /* ── Chat / Response Panel ────────────────────────────────── */
+  #response-panel { display: none; }
+  #response-panel.visible { display: block; }
+
+  .response-section {
+    margin-bottom: 18px;
+  }
+  .response-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 99px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .lbl-summary   { background: rgba(90,158,47,0.2);  color: var(--lime); }
+  .lbl-cause     { background: rgba(192,98,43,0.2);   color: #e88a50; }
+  .lbl-action    { background: rgba(79,195,247,0.2);  color: var(--rain); }
+  .lbl-prevent   { background: rgba(249,224,122,0.2); color: var(--petal); }
+  .lbl-monitor   { background: rgba(168,216,176,0.2); color: var(--mist); }
+  .lbl-sources   { background: rgba(143,107,160,0.2); color: #c4a0d8; }
+  .lbl-warning   { background: rgba(192,98,43,0.2);   color: #e88a50; }
+
+  .response-body {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .response-body ol, .response-body ul {
+    padding-left: 20px;
+    margin-top: 6px;
+  }
+  .response-body li { margin-bottom: 4px; }
+
+  .citation-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(143,107,160,0.15);
+    border: 1px solid rgba(143,107,160,0.3);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    color: #c4a0d8;
+    margin: 3px 3px 0 0;
+    cursor: default;
+  }
+
+  .disclaimer {
+    background: rgba(192,98,43,0.1);
+    border: 1px solid rgba(192,98,43,0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    color: #e88a50;
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+
+  /* ── Weather Widget ───────────────────────────────────────── */
+  .weather-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .weather-card {
+    flex: 1;
+    min-width: 100px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+  }
+  .weather-val {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--rain);
+  }
+  .weather-key {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── Loading Overlay ─────────────────────────────────────── */
+  .thinking-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 14px;
+  }
+  .thinking-dots span {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--sprout);
+    margin-right: 4px;
+    animation: dotBounce 1.2s ease-in-out infinite;
+  }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotBounce {
+    0%,80%,100% { transform: scale(0.6); opacity: 0.4; }
+    40%          { transform: scale(1.2); opacity: 1; }
+  }
+
+  /* ── Progress Bar ────────────────────────────────────────── */
+  .progress-wrap {
+    background: rgba(0,0,0,0.3);
+    border-radius: 99px;
+    height: 6px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress-bar {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--leaf), var(--lime));
+    width: 0;
+    transition: width 0.4s ease;
+  }
+
+  /* ── Divider ─────────────────────────────────────────────── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 18px 0;
+  }
+
+  /* ── Scrollbar ───────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--leaf); border-radius: 3px; }
+
+  /* ── Toast ───────────────────────────────────────────────── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    z-index: 999;
+    transform: translateY(20px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { background: rgba(58,92,26,0.95); border: 1px solid var(--sprout); color: var(--lime); }
+  #toast.error   { background: rgba(60,20,10,0.95); border: 1px solid var(--rust);   color: #e88a50; }
+  #toast.info    { background: rgba(26,58,74,0.95);  border: 1px solid var(--rain);  color: var(--rain); }
+
+  /* ── Watermark strip ─────────────────────────────────────── */
+  .footer-strip {
+    text-align: center;
+    padding: 20px 0 0;
+    font-size: 0.72rem;
+    color: rgba(138,170,106,0.4);
+    letter-spacing: 0.06em;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Animated Background ── -->
+<div id="bg-canvas"></div>
+<div class="mist-band"></div>
+
+<!-- ── App Shell ── -->
+<div id="app">
+
+  <!-- Hero -->
+  <div id="hero">
+    <div class="hero-icon">
+      <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Stem -->
+        <path d="M40 72 L40 30" stroke="#5a9e2f" stroke-width="3" stroke-linecap="round"/>
+        <!-- Main leaf left -->
+        <path d="M40 44 C28 38 18 44 22 56 C30 52 38 46 40 44Z" fill="#3a5c1a"/>
+        <!-- Main leaf right -->
+        <path d="M40 36 C52 30 62 36 58 48 C50 44 42 38 40 36Z" fill="#5a9e2f"/>
+        <!-- Top bloom -->
+        <circle cx="40" cy="24" r="8" fill="#8ecb3c"/>
+        <circle cx="40" cy="24" r="4" fill="#f9e07a"/>
+        <!-- Roots -->
+        <path d="M40 72 C36 76 30 74 28 78" stroke="#3a5c1a" stroke-width="2" stroke-linecap="round"/>
+        <path d="M40 72 C44 76 50 74 52 78" stroke="#3a5c1a" stroke-width="2" stroke-linecap="round"/>
+        <path d="M40 72 L40 78" stroke="#3a5c1a" stroke-width="2" stroke-linecap="round"/>
+        <!-- Soil line -->
+        <path d="M20 74 Q40 70 60 74" stroke="#6b4423" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Sparkles -->
+        <circle cx="18" cy="30" r="2" fill="#f9e07a" opacity="0.7"/>
+        <circle cx="62" cy="22" r="1.5" fill="#f9e07a" opacity="0.5"/>
+        <circle cx="14" cy="50" r="1" fill="#4fc3f7" opacity="0.6"/>
+      </svg>
+    </div>
+    <h1>AgriSage</h1>
+    <p class="tagline">AI-powered agricultural advisor · Rooted in local knowledge</p>
+    <div class="status-pill">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Connecting to backend…</span>
+    </div>
+  </div>
+
+  <!-- ── Ingest Panel ── -->
+  <div class="panel" style="animation-delay:0.1s">
+    <div class="panel-title">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a1 1 0 011 1v5h5a1 1 0 010 2H9v5a1 1 0 01-2 0V9H2a1 1 0 010-2h5V2a1 1 0 011-1z"/></svg>
+      Ingest Agricultural PDFs
+    </div>
+    <div class="ingest-zone" id="drop-zone">
+      <input type="file" id="pdf-input" multiple accept=".pdf" />
+      <span class="ingest-icon">📄</span>
+      <div style="font-size:0.9rem; color:var(--mist); font-weight:600;">Drop PDFs here or click to browse</div>
+      <div class="ingest-hint">Supports multiple PDFs · FAO guides, agri manuals, govt docs</div>
+    </div>
+    <div class="ingest-list" id="ingest-list"></div>
+    <div class="progress-wrap" id="ingest-progress-wrap" style="display:none">
+      <div class="progress-bar" id="ingest-progress-bar"></div>
+    </div>
+    <button class="btn btn-ingest" id="ingest-btn" disabled>
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2a1 1 0 011-1h12a1 1 0 011 1v1H1V2zm0 3h14v9a1 1 0 01-1 1H2a1 1 0 01-1-1V5zm5 2a1 1 0 000 2h4a1 1 0 000-2H6z"/></svg>
+      Ingest &amp; Build Knowledge Base
+    </button>
+  </div>
+
+  <!-- ── Context Panel ── -->
+  <div class="panel" style="animation-delay:0.2s">
+    <div class="panel-title">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm1 11H7V7h2v4zm0-6H7V3h2v2z"/></svg>
+      Your Local Context
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>📍 District / State / Country</label>
+        <input type="text" id="location" placeholder="e.g., Pune, Maharashtra, India" />
+      </div>
+      <div class="field">
+        <label>🌾 Crop</label>
+        <input type="text" id="crop" placeholder="e.g., Rice, Wheat, Tomato…" />
+      </div>
+      <div class="field">
+        <label>🌱 Season Stage</label>
+        <select id="season">
+          <option value="">Select stage…</option>
+          <option>Seedling / Germination</option>
+          <option>Vegetative Growth</option>
+          <option>Flowering / Pollination</option>
+          <option>Grain Fill / Fruiting</option>
+          <option>Maturity / Harvest</option>
+          <option>Post-Harvest / Fallow</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>🪨 Soil Type (optional)</label>
+        <select id="soil">
+          <option value="">Unknown / Skip</option>
+          <option>Sandy</option>
+          <option>Loamy</option>
+          <option>Clay</option>
+          <option>Silt</option>
+          <option>Sandy Loam</option>
+          <option>Black Cotton Soil</option>
+          <option>Red Laterite</option>
+          <option>Alluvial</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>🌧️ Last Rainfall / Irrigation</label>
+        <input type="text" id="rainfall" placeholder="e.g., 20mm rain 3 days ago" />
+      </div>
+      <div class="field">
+        <label>🌡️ Weather API Key (optional)</label>
+        <input type="text" id="weather-key" placeholder="OpenWeatherMap key (or leave blank)" />
+      </div>
+      <div class="field full">
+        <label>🔍 Observed Symptoms / Problem</label>
+        <textarea id="symptoms" placeholder="Describe what you see: yellowing leaves, spots, wilting, insects, root decay, unusual growth…"></textarea>
+      </div>
+    </div>
+
+    <!-- Live weather display -->
+    <div id="weather-display" style="display:none; margin-top:14px;">
+      <div class="panel-title" style="margin-bottom:10px;">
+        <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm1 4.5V8H5.5a1 1 0 000 2H9v3.5a1 1 0 002 0V10h1.5a1 1 0 000-2H11V4.5a1 1 0 00-2 0z"/></svg>
+        Live Weather Fetched
+      </div>
+      <div class="weather-row" id="weather-data-row"></div>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+      <button class="btn btn-primary" id="weather-btn" style="flex:1; min-width:160px;">
+        🌦️ Fetch Local Weather
+      </button>
+      <button class="btn btn-ask" id="ask-btn" style="flex:2; min-width:200px;" disabled>
+        🌿 Ask AgriSage
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Thinking Indicator ── -->
+  <div class="thinking-bar" id="thinking-bar" style="display:none;">
+    <div class="thinking-dots">
+      <span></span><span></span><span></span>
+    </div>
+    <div style="font-size:0.85rem; color:var(--muted)" id="thinking-text">Analyzing your fields…</div>
+  </div>
+
+  <!-- ── Response Panel ── -->
+  <div class="panel" id="response-panel">
+    <div class="panel-title">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12a1 1 0 011 1v7a1 1 0 01-1 1H9l-3 3v-3H2a1 1 0 01-1-1V3a1 1 0 011-1z"/></svg>
+      AgriSage Response
+    </div>
+    <div id="response-content"></div>
+  </div>
+
+  <div class="footer-strip">AgriSage · Powered by RAG · Always verify with local agricultural officers</div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────
+const API = window.AGRISAGE_API || 'http://localhost:8000';
+
+// ── Background Animation Setup ────────────────────────────────
+(function initBg() {
+  const canvas = document.getElementById('bg-canvas');
+
+  // Leaves
+  const leafSVGs = [
+    '<svg viewBox="0 0 20 20"><path d="M10 1C5 1 1 8 4 14c2 4 6 5 9 3 2-1 4-4 4-8C17 4 14 1 10 1z" fill="#3a5c1a" opacity="0.6"/></svg>',
+    '<svg viewBox="0 0 20 20"><ellipse cx="10" cy="10" rx="4" ry="9" fill="#5a9e2f" opacity="0.4" transform="rotate(-20 10 10)"/></svg>',
+    '<svg viewBox="0 0 20 20"><path d="M2 18C8 16 16 8 18 2 12 4 4 12 2 18z" fill="#8ecb3c" opacity="0.35"/></svg>'
+  ];
+  for (let i = 0; i < 14; i++) {
+    const el = document.createElement('div');
+    el.className = 'leaf-fall';
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.animationDuration = (8 + Math.random() * 12) + 's';
+    el.style.animationDelay   = (Math.random() * 20) + 's';
+    el.style.width = el.style.height = (12 + Math.random() * 16) + 'px';
+    el.innerHTML = leafSVGs[i % leafSVGs.length];
+    canvas.appendChild(el);
+  }
+
+  // Rain drops
+  for (let i = 0; i < 30; i++) {
+    const el = document.createElement('div');
+    el.className = 'raindrop';
+    el.style.left   = Math.random() * 100 + 'vw';
+    el.style.height = (20 + Math.random() * 40) + 'px';
+    el.style.animationDuration = (0.8 + Math.random() * 1.2) + 's';
+    el.style.animationDelay   = (Math.random() * 5) + 's';
+    canvas.appendChild(el);
+  }
+
+  // Fireflies
+  for (let i = 0; i < 10; i++) {
+    const el = document.createElement('div');
+    el.className = 'firefly';
+    el.style.left = (10 + Math.random() * 80) + 'vw';
+    el.style.top  = (20 + Math.random() * 60) + 'vh';
+    el.style.animationDuration = (3 + Math.random() * 4) + 's';
+    el.style.animationDelay   = (Math.random() * 6) + 's';
+    canvas.appendChild(el);
+  }
+})();
+
+// ── Toast ──────────────────────────────────────────────────────
+function showToast(msg, type = 'info', duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = ''; }, duration);
+}
+
+// ── Status ────────────────────────────────────────────────────
+function setStatus(state, text) {
+  document.getElementById('status-dot').className = 'status-dot ' + state;
+  document.getElementById('status-text').textContent = text;
+}
+
+// ── Health Check ──────────────────────────────────────────────
+async function healthCheck() {
+  try {
+    const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(5000) });
+    const d = await r.json();
+    const ingested = d.ingested_docs ?? 0;
+    setStatus('ready', `Backend ready · ${ingested} doc(s) ingested`);
+    document.getElementById('ask-btn').disabled = false;
+  } catch {
+    setStatus('error', 'Backend offline · Start app.py first');
+  }
+}
+
+healthCheck();
+
+// ── File Handling ──────────────────────────────────────────────
+const pdfInput  = document.getElementById('pdf-input');
+const dropZone  = document.getElementById('drop-zone');
+const ingestList= document.getElementById('ingest-list');
+const ingestBtn = document.getElementById('ingest-btn');
+let   selectedFiles = [];
+
+function renderFileList() {
+  ingestList.innerHTML = '';
+  selectedFiles.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'ingest-item';
+    div.innerHTML = `📄 ${f.name} <button class="remove-btn" data-i="${i}">×</button>`;
+    ingestList.appendChild(div);
+  });
+  ingestBtn.disabled = selectedFiles.length === 0;
+}
+
+pdfInput.addEventListener('change', e => {
+  selectedFiles = [...e.target.files];
+  renderFileList();
+});
+
+ingestList.addEventListener('click', e => {
+  if (e.target.classList.contains('remove-btn')) {
+    selectedFiles.splice(+e.target.dataset.i, 1);
+    renderFileList();
+  }
+});
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  selectedFiles = [...e.dataTransfer.files].filter(f => f.name.endsWith('.pdf'));
+  renderFileList();
+});
+
+// ── Ingest ────────────────────────────────────────────────────
+ingestBtn.addEventListener('click', async () => {
+  if (!selectedFiles.length) return;
+  ingestBtn.disabled = true;
+  setStatus('loading', 'Ingesting PDFs…');
+  showToast('📚 Ingesting knowledge base…', 'info', 10000);
+
+  const progressWrap = document.getElementById('ingest-progress-wrap');
+  const progressBar  = document.getElementById('ingest-progress-bar');
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '10%';
+
+  const form = new FormData();
+  selectedFiles.forEach(f => form.append('files', f));
+
+  try {
+    progressBar.style.width = '40%';
+    const res = await fetch(`${API}/ingest`, { method: 'POST', body: form });
+    progressBar.style.width = '80%';
+    const data = await res.json();
+    progressBar.style.width = '100%';
+    setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0'; }, 800);
+
+    if (res.ok) {
+      showToast(`✅ Ingested ${data.chunks} chunks from ${data.files} file(s)`, 'success', 4000);
+      setStatus('ready', `Ready · ${data.files} doc(s) indexed`);
+      document.getElementById('ask-btn').disabled = false;
+    } else {
+      throw new Error(data.detail || 'Ingest failed');
+    }
+  } catch(err) {
+    showToast(`❌ ${err.message}`, 'error', 5000);
+    setStatus('error', 'Ingest error');
+    progressWrap.style.display = 'none';
+  }
+  ingestBtn.disabled = false;
+});
+
+// ── Weather Fetch ─────────────────────────────────────────────
+document.getElementById('weather-btn').addEventListener('click', async () => {
+  const key = document.getElementById('weather-key').value.trim();
+  const loc = document.getElementById('location').value.trim();
+  if (!key) { showToast('No API key — enter weather manually in rainfall field', 'info'); return; }
+  if (!loc) { showToast('Enter your location first', 'info'); return; }
+  showToast('🌦️ Fetching weather…', 'info');
+  try {
+    const r   = await fetch(`${API}/weather?location=${encodeURIComponent(loc)}&key=${encodeURIComponent(key)}`);
+    const d   = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Weather error');
+    const row = document.getElementById('weather-data-row');
+    row.innerHTML = `
+      <div class="weather-card"><div class="weather-val">${Math.round(d.temp)}°C</div><div class="weather-key">Temperature</div></div>
+      <div class="weather-card"><div class="weather-val">${d.humidity}%</div><div class="weather-key">Humidity</div></div>
+      <div class="weather-card"><div class="weather-val">${d.description}</div><div class="weather-key">Condition</div></div>
+      <div class="weather-card"><div class="weather-val">${d.wind_kph} kph</div><div class="weather-key">Wind</div></div>
+    `;
+    document.getElementById('weather-display').style.display = 'block';
+    document.getElementById('rainfall').value = `Live: ${d.description}, ${Math.round(d.temp)}°C, ${d.humidity}% RH`;
+    showToast('✅ Weather loaded', 'success');
+  } catch(err) {
+    showToast(`❌ ${err.message}`, 'error');
+  }
+});
+
+// ── Ask ───────────────────────────────────────────────────────
+document.getElementById('ask-btn').addEventListener('click', askAgriSage);
+
+async function askAgriSage() {
+  const location = document.getElementById('location').value.trim();
+  const crop     = document.getElementById('crop').value.trim();
+  const season   = document.getElementById('season').value;
+  const symptoms = document.getElementById('symptoms').value.trim();
+  const soil     = document.getElementById('soil').value;
+  const rainfall = document.getElementById('rainfall').value.trim();
+
+  if (!crop || !symptoms) {
+    showToast('Please fill in Crop and Observed Symptoms at minimum', 'error');
+    return;
+  }
+
+  const thinkingBar  = document.getElementById('thinking-bar');
+  const thinkingText = document.getElementById('thinking-text');
+  const responsePanel= document.getElementById('response-panel');
+  const askBtn       = document.getElementById('ask-btn');
+
+  const thinkPhrases = [
+    'Consulting the soil archives…',
+    'Cross-referencing crop manuals…',
+    'Analyzing field conditions…',
+    'Retrieving agricultural knowledge…',
+    'Synthesizing your farm data…'
+  ];
+  let tIdx = 0;
+  thinkingBar.style.display = 'flex';
+  thinkingText.textContent  = thinkPhrases[0];
+  const tInterval = setInterval(() => {
+    tIdx = (tIdx + 1) % thinkPhrases.length;
+    thinkingText.textContent = thinkPhrases[tIdx];
+  }, 2200);
+
+  askBtn.disabled = true;
+  responsePanel.classList.remove('visible');
+  setStatus('loading', 'Thinking…');
+
+  const payload = { location, crop, season, symptoms, soil_type: soil, last_rainfall: rainfall };
+
+  try {
+    const res  = await fetch(`${API}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Ask failed');
+
+    clearInterval(tInterval);
+    thinkingBar.style.display = 'none';
+    renderResponse(data);
+    setStatus('ready', 'Response ready');
+    askBtn.disabled = false;
+    showToast('🌿 Analysis complete', 'success');
+    responsePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch(err) {
+    clearInterval(tInterval);
+    thinkingBar.style.display = 'none';
+    showToast(`❌ ${err.message}`, 'error', 5000);
+    setStatus('error', 'Query error');
+    askBtn.disabled = false;
+  }
+}
+
+// ── Render Response ───────────────────────────────────────────
+function renderResponse(data) {
+  const panel   = document.getElementById('response-panel');
+  const content = document.getElementById('response-content');
+
+  const safe = s => (s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const listify = arr => Array.isArray(arr)
+    ? `<ul>${arr.map(x => `<li>${safe(x)}</li>`).join('')}</ul>`
+    : `<p>${safe(arr)}</p>`;
+
+  let html = '';
+
+  // Summary
+  if (data.summary) {
+    html += `<div class="response-section">
+      <span class="response-label lbl-summary">📋 Summary</span>
+      <div class="response-body"><p>${safe(data.summary)}</p></div>
+    </div><div class="divider"></div>`;
+  }
+
+  // Likely causes
+  if (data.likely_causes) {
+    html += `<div class="response-section">
+      <span class="response-label lbl-cause">🔬 Likely Cause(s)</span>
+      <div class="response-body">${listify(data.likely_causes)}</div>
+    </div><div class="divider"></div>`;
+  }
+
+  // Action plan
+  if (data.action_plan) {
+    html += `<div class="response-section">
+      <span class="response-label lbl-action">⚡ Step-by-Step Action Plan</span>
+      <div class="response-body">${
+        Array.isArray(data.action_plan)
+          ? `<ol>${data.action_plan.map(x => `<li>${safe(x)}</li>`).join('')}</ol>`
+          : `<p>${safe(data.action_plan)}</p>`
+      }</div>
+    </div><div class="divider"></div>`;
+  }
+
+  // Prevention
+  if (data.preventive_measures) {
+    html += `<div class="response-section">
+      <span class="response-label lbl-prevent">🛡️ Preventive Measures</span>
+      <div class="response-body">${listify(data.preventive_measures)}</div>
+    </div><div class="divider"></div>`;
+  }
+
+  // Monitor
+  if (data.monitor_next_7_days) {
+    html += `<div class="response-section">
+      <span class="response-label lbl-monitor">📅 Monitor Next 7 Days</span>
+      <div class="response-body">${listify(data.monitor_next_7_days)}</div>
+    </div><div class="divider"></div>`;
+  }
+
+  // Low confidence note
+  if (data.low_confidence) {
+    html += `<div class="disclaimer">⚠️ Note: The knowledge base had limited coverage for this query. The response below is based on general best practices, not specific retrieved documents. Please consult local extension services.</div>`;
+  }
+
+  // Citations
+  if (data.citations && data.citations.length > 0) {
+    html += `<div class="response-section" style="margin-top:14px;">
+      <span class="response-label lbl-sources">📚 Sources & Citations</span>
+      <div style="margin-top:8px; display:flex; flex-wrap:wrap;">
+        ${data.citations.map(c => `<div class="citation-chip">📄 ${safe(c.source)} · chunk ${c.chunk_id} <span style="opacity:0.5; margin-left:4px;">${safe((c.snippet||'').slice(0,60))}…</span></div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Disclaimer
+  html += `<div class="disclaimer" style="margin-top:16px;">⚠️ Disclaimer: This guidance is advisory only. Always verify chemical dosages with local labels and regulations. Consult your district agricultural officer for severe infestations or disease outbreaks.</div>`;
+
+  content.innerHTML = html;
+  panel.classList.add('visible');
+}
+</script>
+</body>
+</html>

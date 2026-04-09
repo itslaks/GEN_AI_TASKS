@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CREW/AI — Content Generation Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #020408;
+    --bg2: #050d14;
+    --panel: #070f1a;
+    --border: #0f2a3f;
+    --accent: #00ffe5;
+    --accent2: #ff6b35;
+    --accent3: #a855f7;
+    --accent4: #22c55e;
+    --text: #c8e8f0;
+    --text-dim: #4a7a8a;
+    --glow: 0 0 20px #00ffe540, 0 0 60px #00ffe520;
+    --glow2: 0 0 20px #ff6b3540, 0 0 60px #ff6b3520;
+    --scanline: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,229,0.015) 2px, rgba(0,255,229,0.015) 4px);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: var(--scanline);
+    pointer-events: none;
+    z-index: 9999;
+    animation: flicker 8s infinite;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,229,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,229,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridMove 20s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes gridMove { 0%{transform:translate(0,0)} 100%{transform:translate(60px,60px)} }
+  @keyframes flicker { 0%,98%,100%{opacity:1} 99%{opacity:0.85} }
+
+  .particles { position:fixed; inset:0; pointer-events:none; z-index:1; overflow:hidden; }
+  .particle {
+    position:absolute; border-radius:50%; animation:float linear infinite; opacity:0;
+  }
+  @keyframes float {
+    0%   { transform:translateY(100vh) translateX(0); opacity:0; }
+    10%  { opacity:1; }
+    90%  { opacity:1; }
+    100% { transform:translateY(-20px) translateX(40px); opacity:0; }
+  }
+
+  .wrapper {
+    position:relative; z-index:10;
+    max-width:1100px; margin:0 auto;
+    padding:30px 20px 60px;
+  }
+
+  header { text-align:center; padding:40px 0 30px; position:relative; }
+
+  .logo-line {
+    display:flex; align-items:center; justify-content:center;
+    gap:16px; margin-bottom:10px;
+  }
+
+  .logo-icon {
+    width:56px; height:56px;
+    border:2px solid var(--accent); border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px;
+    box-shadow:var(--glow);
+    animation:pulseBox 3s ease-in-out infinite;
+    position:relative; overflow:hidden;
+  }
+  .logo-icon::after {
+    content:'';
+    position:absolute; inset:0;
+    background:linear-gradient(135deg,transparent 40%,rgba(0,255,229,0.15) 100%);
+  }
+
+  @keyframes pulseBox {
+    0%,100%{box-shadow:var(--glow)}
+    50%{box-shadow:0 0 40px #00ffe580,0 0 80px #00ffe530}
+  }
+
+  h1 {
+    font-family:'Orbitron',monospace; font-weight:900;
+    font-size:clamp(28px,5vw,52px);
+    letter-spacing:6px; color:var(--accent);
+    text-shadow:0 0 30px #00ffe560,0 0 60px #00ffe330;
+    animation:textGlow 4s ease-in-out infinite;
+  }
+
+  @keyframes textGlow {
+    0%,100%{text-shadow:0 0 30px #00ffe560,0 0 60px #00ffe330}
+    50%{text-shadow:0 0 50px #00ffe5a0,0 0 100px #00ffe560}
+  }
+
+  .subtitle {
+    font-family:'VT323',monospace; font-size:20px;
+    color:var(--accent2); letter-spacing:3px; margin-top:8px;
+  }
+  .subtitle::after { content:'▮'; margin-left:4px; animation:blinkC 1.5s step-end infinite; }
+  @keyframes blinkC { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .status-bar {
+    display:flex; align-items:center; justify-content:center;
+    gap:20px; margin-top:16px;
+    font-size:11px; color:var(--text-dim); letter-spacing:2px;
+  }
+  .status-dot {
+    width:8px; height:8px; border-radius:50%;
+    background:var(--accent4);
+    box-shadow:0 0 10px var(--accent4);
+    animation:dotPulse 2s ease-in-out infinite;
+  }
+  @keyframes dotPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+  .pipeline {
+    display:flex; align-items:center; justify-content:center;
+    gap:0; margin:30px 0; flex-wrap:wrap;
+  }
+
+  .agent-chip {
+    display:flex; flex-direction:column; align-items:center;
+    gap:6px; padding:14px 28px;
+    border:1px solid var(--border); border-radius:10px;
+    background:var(--panel);
+    position:relative; transition:all 0.4s;
+    min-width:130px; cursor:default;
+  }
+  .agent-chip:hover { border-color:var(--accent); transform:translateY(-4px); }
+  .agent-chip.active {
+    border-color:var(--accent);
+    box-shadow:var(--glow);
+    animation:chipPulse 1s ease-in-out infinite;
+  }
+  @keyframes chipPulse {
+    0%,100%{box-shadow:var(--glow)}
+    50%{box-shadow:0 0 40px #00ffe560,0 0 80px #00ffe530}
+  }
+  .agent-chip.active .chip-icon { text-shadow:0 0 15px var(--accent); }
+  .agent-chip.done { border-color:var(--accent4); }
+
+  .chip-icon { font-size:26px; transition:all 0.3s; }
+  .chip-label {
+    font-family:'Orbitron',monospace; font-size:10px;
+    font-weight:700; letter-spacing:2px; color:var(--accent2);
+  }
+  .chip-role { font-size:10px; color:var(--text-dim); }
+  .chip-status {
+    font-size:9px; color:var(--text-dim);
+    padding:2px 8px; border-radius:10px;
+    background:rgba(0,255,229,0.05);
+    border:1px solid var(--border);
+    transition:all 0.3s;
+  }
+  .agent-chip.active .chip-status { background:rgba(0,255,229,0.15); color:var(--accent); border-color:var(--accent); }
+  .agent-chip.done .chip-status { background:rgba(34,197,94,0.15); color:var(--accent4); border-color:var(--accent4); }
+
+  .pipeline-arrow {
+    font-size:22px; color:var(--accent); padding:0 10px;
+    opacity:0.4; animation:arrowFlow 2s ease-in-out infinite;
+  }
+  @keyframes arrowFlow {
+    0%,100%{opacity:.25;transform:translateX(0)}
+    50%{opacity:.9;transform:translateX(5px)}
+  }
+
+  .panel {
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:12px; padding:28px; margin-bottom:24px;
+    position:relative; overflow:hidden;
+  }
+  .panel::before {
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:1px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);
+    animation:scanTop 5s linear infinite;
+  }
+  @keyframes scanTop { 0%{opacity:0;background-position:0} 50%{opacity:1} 100%{opacity:0} }
+
+  .panel-title {
+    font-family:'Orbitron',monospace;
+    font-size:11px; font-weight:700;
+    letter-spacing:3px; color:var(--accent2);
+    margin-bottom:20px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .panel-title::before { content:'//'; color:var(--accent); }
+
+  .form-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  }
+  .form-grid .full { grid-column:1/-1; }
+
+  label {
+    display:block; font-size:10px; letter-spacing:2px;
+    color:var(--text-dim); margin-bottom:6px; text-transform:uppercase;
+  }
+
+  input, select, textarea {
+    width:100%; background:#030b12;
+    border:1px solid var(--border); border-radius:6px;
+    color:var(--text); font-family:'Share Tech Mono',monospace;
+    font-size:14px; padding:10px 14px; outline:none;
+    transition:all 0.3s;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(0,255,229,0.1),var(--glow);
+  }
+  textarea { resize:vertical; min-height:90px; }
+  select option { background:#030b12; }
+
+  .btn-generate {
+    width:100%; padding:18px; margin-top:20px;
+    background:transparent; border:2px solid var(--accent);
+    border-radius:8px; color:var(--accent);
+    font-family:'Orbitron',monospace;
+    font-size:14px; font-weight:700; letter-spacing:4px;
+    cursor:pointer; position:relative; overflow:hidden;
+    transition:all 0.3s;
+  }
+  .btn-generate::before {
+    content:'';
+    position:absolute; inset:0;
+    background:linear-gradient(90deg,transparent,rgba(0,255,229,0.12),transparent);
+    transform:translateX(-100%); transition:transform 0.6s;
+  }
+  .btn-generate:hover::before { transform:translateX(100%); }
+  .btn-generate:hover {
+    background:rgba(0,255,229,0.08);
+    box-shadow:var(--glow); text-shadow:0 0 15px var(--accent);
+  }
+  .btn-generate:disabled {
+    opacity:.4; cursor:not-allowed;
+    border-color:var(--text-dim); color:var(--text-dim);
+    animation:none;
+  }
+  .btn-generate:disabled::before { display:none; }
+
+  /* ── Terminal ── */
+  .terminal {
+    background:#020608; border:1px solid var(--border);
+    border-radius:10px; overflow:hidden;
+    margin-bottom:24px; display:none;
+    animation:panelReveal 0.4s ease-out;
+  }
+  .terminal.visible { display:block; }
+
+  .term-header {
+    background:var(--panel); padding:10px 16px;
+    display:flex; align-items:center; gap:8px;
+    border-bottom:1px solid var(--border);
+  }
+  .term-dot { width:10px; height:10px; border-radius:50%; transition:box-shadow 0.3s; }
+  .term-dot.red  { background:#ff5f56; }
+  .term-dot.yel  { background:#ffbd2e; }
+  .term-dot.grn  { background:#27c93f; animation:dotPulse 2s ease-in-out infinite; box-shadow:0 0 8px #27c93f; }
+  .term-title { margin-left:auto; font-size:10px; color:var(--text-dim); letter-spacing:2px; }
+
+  .term-body {
+    padding:16px; max-height:300px; overflow-y:auto;
+    scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+  }
+
+  .log-line { margin-bottom:5px; animation:fadeSlide 0.3s ease-out; line-height:1.6; }
+  @keyframes fadeSlide { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+  .log-line .ts    { color:var(--text-dim); }
+  .log-line .tag   { padding:1px 7px; border-radius:3px; font-weight:700; font-size:10px; letter-spacing:1px; }
+  .tag-sys  { background:rgba(0,255,229,0.15); color:var(--accent); }
+  .tag-res  { background:rgba(168,85,247,0.2); color:var(--accent3); }
+  .tag-wri  { background:rgba(255,107,53,0.2); color:var(--accent2); }
+  .tag-edi  { background:rgba(34,197,94,0.2); color:var(--accent4); }
+  .tag-err  { background:rgba(255,60,60,0.2); color:#ff6060; }
+  .log-line .msg   { color:var(--text); }
+
+  .progress-wrap { margin:0 16px 14px; }
+  .progress-label {
+    display:flex; justify-content:space-between;
+    font-size:10px; color:var(--text-dim); margin-bottom:6px; letter-spacing:1px;
+  }
+  .progress-track { height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+  .progress-fill {
+    height:100%; border-radius:2px;
+    background:linear-gradient(90deg,var(--accent3),var(--accent),var(--accent4));
+    transition:width 0.8s cubic-bezier(.4,0,.2,1);
+    box-shadow:0 0 12px var(--accent);
+    width:0%;
+  }
+
+  /* ── Output ── */
+  .output-panel { display:none; animation:panelReveal 0.6s ease-out; }
+  .output-panel.visible { display:block; }
+  @keyframes panelReveal { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+
+  .output-meta {
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+    gap:12px; margin-bottom:20px;
+  }
+  .meta-card {
+    background:var(--bg2); border:1px solid var(--border);
+    border-radius:8px; padding:14px 16px;
+    position:relative; overflow:hidden; transition:border-color 0.3s;
+  }
+  .meta-card:hover { border-color:var(--accent3); }
+  .meta-card::after {
+    content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg,var(--accent3),var(--accent));
+  }
+  .meta-key { font-size:9px; letter-spacing:2px; color:var(--text-dim); margin-bottom:5px; text-transform:uppercase; }
+  .meta-val { font-size:13px; color:var(--accent); font-family:'Orbitron',monospace; font-weight:700; word-break:break-word; }
+
+  .tab-bar {
+    display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:0;
+  }
+  .tab {
+    padding:10px 20px; font-family:'Share Tech Mono',monospace;
+    font-size:11px; letter-spacing:2px; cursor:pointer;
+    border:1px solid transparent; border-bottom:none;
+    border-radius:6px 6px 0 0; color:var(--text-dim);
+    transition:all 0.2s; position:relative; top:1px;
+    user-select:none;
+  }
+  .tab.active { background:var(--panel); border-color:var(--border); color:var(--accent); }
+  .tab:not(.active):hover { color:var(--text); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  .blog-output {
+    background:#030c14; border:1px solid var(--border);
+    border-radius:0 10px 10px 10px; padding:32px;
+    font-family:'Space Mono',monospace; font-size:13px;
+    line-height:1.9; color:#c8e8f0;
+    white-space:pre-wrap; word-break:break-word;
+    overflow-y:auto; max-height:620px;
+  }
+
+  .blog-rendered {
+    background:#030c14; border:1px solid var(--border);
+    border-radius:0 10px 10px 10px; padding:32px;
+    font-family:'Space Mono',monospace; font-size:13px;
+    line-height:1.9; color:#c8e8f0;
+    overflow-y:auto; max-height:620px;
+  }
+  .blog-rendered h1 {
+    font-family:'Orbitron',monospace; color:var(--accent);
+    font-size:1.5em; margin:1.2em 0 .5em;
+    text-shadow:0 0 20px #00ffe540; border-bottom:1px solid var(--border); padding-bottom:.4em;
+  }
+  .blog-rendered h2 {
+    font-family:'Orbitron',monospace; color:var(--accent2);
+    font-size:1.1em; margin:1.4em 0 .4em;
+    border-left:3px solid var(--accent2); padding-left:12px;
+  }
+  .blog-rendered h3 { color:var(--accent3); font-size:1em; margin:1.1em 0 .4em; }
+  .blog-rendered p  { margin-bottom:.9em; }
+  .blog-rendered ul, .blog-rendered ol { margin:.5em 0 .9em 1.4em; }
+  .blog-rendered li { margin-bottom:.35em; }
+  .blog-rendered strong { color:var(--accent); }
+  .blog-rendered em { color:var(--accent2); font-style:normal; }
+  .blog-rendered blockquote {
+    border-left:3px solid var(--accent3); padding:10px 16px; margin:1em 0;
+    background:rgba(168,85,247,0.07); border-radius:0 6px 6px 0; color:var(--accent3);
+  }
+  .blog-rendered code {
+    background:rgba(0,255,229,0.08); border:1px solid rgba(0,255,229,0.2);
+    padding:2px 6px; border-radius:3px; color:var(--accent);
+    font-family:'Share Tech Mono',monospace; font-size:.9em;
+  }
+  .blog-rendered hr { border:none; border-top:1px solid var(--border); margin:1.5em 0; }
+
+  .output-actions {
+    display:flex; gap:12px; margin-top:16px; flex-wrap:wrap;
+  }
+  .btn-action {
+    padding:10px 20px; border-radius:6px;
+    border:1px solid var(--border); background:var(--panel);
+    color:var(--text); font-family:'Share Tech Mono',monospace;
+    font-size:12px; letter-spacing:1px; cursor:pointer; transition:all 0.25s;
+  }
+  .btn-action:hover { border-color:var(--accent); color:var(--accent); box-shadow:var(--glow); }
+  .btn-action.primary { border-color:var(--accent2); color:var(--accent2); }
+  .btn-action.primary:hover { background:rgba(255,107,53,0.1); box-shadow:var(--glow2); }
+
+  .error-box {
+    background:rgba(255,60,60,0.08); border:1px solid rgba(255,60,60,0.4);
+    border-radius:8px; padding:16px; color:#ff8888;
+    font-size:12px; white-space:pre-wrap; display:none; margin-bottom:16px;
+  }
+  .error-box.visible { display:block; animation:fadeSlide .3s; }
+
+  .cite-section {
+    background:rgba(168,85,247,0.06); border:1px solid rgba(168,85,247,0.25);
+    border-radius:8px; padding:18px; margin-top:16px;
+  }
+  .cite-title {
+    font-family:'Orbitron',monospace; font-size:10px;
+    letter-spacing:3px; color:var(--accent3); margin-bottom:10px;
+  }
+  .cite-item {
+    font-size:12px; color:var(--text-dim);
+    padding:5px 0; border-bottom:1px solid rgba(168,85,247,0.1);
+  }
+
+  .corner-deco {
+    position:fixed; width:80px; height:80px; pointer-events:none; z-index:5;
+  }
+  .corner-deco.tl { top:16px;left:16px; border-top:2px solid var(--accent); border-left:2px solid var(--accent); opacity:.25; }
+  .corner-deco.tr { top:16px;right:16px; border-top:2px solid var(--accent); border-right:2px solid var(--accent); opacity:.25; }
+  .corner-deco.bl { bottom:16px;left:16px; border-bottom:2px solid var(--accent); border-left:2px solid var(--accent); opacity:.25; }
+  .corner-deco.br { bottom:16px;right:16px; border-bottom:2px solid var(--accent); border-right:2px solid var(--accent); opacity:.25; }
+
+  .meta-desc-bar {
+    font-size:11px; color:var(--text-dim);
+    padding:10px 0; border-top:1px solid var(--border); margin-top:10px;
+  }
+
+  footer {
+    text-align:center; padding:30px 0;
+    font-size:10px; color:var(--text-dim); letter-spacing:2px;
+  }
+  footer span { color:var(--accent2); }
+
+  @media (max-width:640px) {
+    .form-grid { grid-template-columns:1fr; }
+    .pipeline-arrow { display:none; }
+    .blog-rendered,.blog-output { padding:18px; font-size:12px; }
+    h1 { letter-spacing:3px; }
+  }
+</style>
+</head>
+<body>
+<div class="corner-deco tl"></div>
+<div class="corner-deco tr"></div>
+<div class="corner-deco bl"></div>
+<div class="corner-deco br"></div>
+
+<div class="particles" id="particles"></div>
+
+<div class="wrapper">
+
+  <header>
+    <div class="logo-line">
+      <div class="logo-icon">🤖</div>
+      <h1>CREW/AI</h1>
+    </div>
+    <div class="subtitle">CONTENT GENERATION TERMINAL v2.0</div>
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      <span>SYSTEM ONLINE</span>
+      <span>·</span>
+      <span>3 AGENTS READY</span>
+      <span>·</span>
+      <span>CREWAI + OPENAI</span>
+    </div>
+  </header>
+
+  <!-- Pipeline -->
+  <div class="pipeline">
+    <div class="agent-chip" id="chip-researcher">
+      <div class="chip-icon">🔬</div>
+      <div class="chip-label">RESEARCHER</div>
+      <div class="chip-role">Intel &amp; Brief</div>
+      <div class="chip-status" id="status-researcher">STANDBY</div>
+    </div>
+    <div class="pipeline-arrow">──▶</div>
+    <div class="agent-chip" id="chip-writer">
+      <div class="chip-icon">✍️</div>
+      <div class="chip-label">WRITER</div>
+      <div class="chip-role">Content Draft</div>
+      <div class="chip-status" id="status-writer">STANDBY</div>
+    </div>
+    <div class="pipeline-arrow">──▶</div>
+    <div class="agent-chip" id="chip-editor">
+      <div class="chip-icon">🎯</div>
+      <div class="chip-label">EDITOR</div>
+      <div class="chip-role">Final Polish</div>
+      <div class="chip-status" id="status-editor">STANDBY</div>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div class="panel">
+    <div class="panel-title">MISSION PARAMETERS</div>
+    <div class="form-grid">
+      <div class="full">
+        <label>Topic * (Digital Life / Internet Literacy domain)</label>
+        <textarea id="topic" placeholder="e.g. How to spot phishing emails and protect your inbox in 2025"></textarea>
+      </div>
+      <div>
+        <label>Target Audience</label>
+        <input id="audience" type="text" placeholder="e.g. Non-technical adults, teens..." />
+      </div>
+      <div>
+        <label>Tone</label>
+        <select id="tone">
+          <option value="trustworthy and practical">Trustworthy &amp; Practical</option>
+          <option value="conversational and friendly">Conversational &amp; Friendly</option>
+          <option value="professional and authoritative">Professional &amp; Authoritative</option>
+          <option value="educational and clear">Educational &amp; Clear</option>
+          <option value="non-alarmist and empowering">Non-Alarmist &amp; Empowering</option>
+        </select>
+      </div>
+      <div>
+        <label>Target Length (words)</label>
+        <input id="length" type="number" value="1200" min="400" max="3000" />
+      </div>
+      <div class="full">
+        <label>Backend API URL</label>
+        <input id="apiBase" type="text" value="http://localhost:5000" placeholder="http://localhost:5000" />
+      </div>
+    </div>
+    <button class="btn-generate" id="btnGenerate" onclick="generate()">
+      ⚡ INITIALIZE CREW — GENERATE CONTENT
+    </button>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Terminal -->
+  <div class="terminal" id="terminal">
+    <div class="term-header">
+      <div class="term-dot red"></div>
+      <div class="term-dot yel"></div>
+      <div class="term-dot grn"></div>
+      <div class="term-title">CREW/AI AGENT LOG</div>
+    </div>
+    <div class="term-body" id="termBody"></div>
+    <div style="padding:0 16px 14px">
+      <div class="progress-label">
+        <span id="progressLabel">INITIALIZING...</span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div class="output-panel" id="outputPanel">
+    <div class="panel">
+      <div class="panel-title">MISSION COMPLETE — CONTENT DELIVERED</div>
+
+      <div class="output-meta" id="metaCards"></div>
+      <div id="metaDescBar"></div>
+
+      <div class="tab-bar">
+        <div class="tab active" id="tab-btn-rendered" onclick="switchTab('rendered',this)">📄 RENDERED</div>
+        <div class="tab" id="tab-btn-raw" onclick="switchTab('raw',this)">💻 RAW MARKDOWN</div>
+      </div>
+      <div class="tab-content active" id="tab-rendered">
+        <div class="blog-rendered" id="blogRendered"></div>
+      </div>
+      <div class="tab-content" id="tab-raw">
+        <div class="blog-output" id="blogRaw"></div>
+      </div>
+
+      <div class="cite-section" id="citeSection" style="display:none">
+        <div class="cite-title">// SUGGESTED SOURCES TO VERIFY</div>
+        <div id="citeList"></div>
+      </div>
+
+      <div class="output-actions">
+        <button class="btn-action primary" onclick="copyPost()">📋 COPY MARKDOWN</button>
+        <button class="btn-action" onclick="downloadPost()">💾 DOWNLOAD .MD</button>
+        <button class="btn-action" onclick="resetAll()">🔄 NEW MISSION</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>CREW/AI TERMINAL &nbsp;·&nbsp; BUILT BY <span>LAKSHAN</span> &nbsp;·&nbsp; 3-AGENT SEQUENTIAL PIPELINE &nbsp;·&nbsp; CREWAI + OPENAI</footer>
+</div>
+
+<script>
+// ── Particles
+(function(){
+  const c=document.getElementById('particles');
+  const colors=['#00ffe5','#ff6b35','#a855f7','#22c55e'];
+  for(let i=0;i<40;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    const s=1+Math.random()*2;
+    p.style.cssText=`left:${Math.random()*100}%;width:${s}px;height:${s}px;background:${colors[Math.floor(Math.random()*4)]};animation-duration:${8+Math.random()*14}s;animation-delay:${Math.random()*12}s;`;
+    c.appendChild(p);
+  }
+})();
+
+// ── State
+let currentPost='', currentTitle='blog-post';
+
+// ── Tab
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+// ── Log
+function log(msg,tag='sys'){
+  const body=document.getElementById('termBody');
+  const ts=new Date().toLocaleTimeString('en-US',{hour12:false});
+  const tagMap={sys:'SYS',res:'RES',wri:'WRI',edi:'EDI',err:'ERR'};
+  const clsMap={sys:'tag-sys',res:'tag-res',wri:'tag-wri',edi:'tag-edi',err:'tag-err'};
+  const line=document.createElement('div');
+  line.className='log-line';
+  line.innerHTML=`<span class="ts">[${ts}]</span> <span class="tag ${clsMap[tag]}">${tagMap[tag]}</span> <span class="msg"> ${escHtml(msg)}</span>`;
+  body.appendChild(line);
+  body.scrollTop=body.scrollHeight;
+}
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function setProgress(pct,label){
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressPct').textContent=pct+'%';
+  document.getElementById('progressLabel').textContent=label;
+}
+
+function setAgent(name,state){
+  ['researcher','writer','editor'].forEach(a=>{
+    const chip=document.getElementById('chip-'+a);
+    const st=document.getElementById('status-'+a);
+    if(a===name){
+      if(state==='active'){
+        chip.classList.add('active'); chip.classList.remove('done');
+        st.textContent='WORKING...';
+      } else if(state==='done'){
+        chip.classList.remove('active'); chip.classList.add('done');
+        st.textContent='DONE ✓';
+      }
+    }
+  });
+}
+
+// ── Markdown → HTML
+function mdToHtml(md){
+  let h=md
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/_(.+?)_/g,'<em>$1</em>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`(.+?)`/g,'<code>$1</code>')
+    .replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>')
+    .replace(/^---+$/gm,'<hr/>')
+    .replace(/^\* (.+)$/gm,'<li>$1</li>')
+    .replace(/^- (.+)$/gm,'<li>$1</li>')
+    .replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
+  // wrap consecutive <li> in <ul>
+  h=h.replace(/(<li>[\s\S]+?<\/li>(\n|$))+/g,m=>'<ul>'+m+'</ul>');
+  // paragraphs
+  h=h.split(/\n{2,}/).map(block=>{
+    if(/^<(h[1-3]|ul|ol|blockquote|hr)/.test(block.trim())) return block;
+    return '<p>'+block.replace(/\n/g,'<br/>')+'</p>';
+  }).join('\n');
+  return h;
+}
+
+// ── Generate
+async function generate(){
+  const topic=document.getElementById('topic').value.trim();
+  const audience=document.getElementById('audience').value.trim()||'general internet users';
+  const tone=document.getElementById('tone').value;
+  const length=parseInt(document.getElementById('length').value)||1200;
+  let apiBase=document.getElementById('apiBase').value.trim().replace(/\/$/,'');
+
+  // fallback to current origin if default is used and we are serving from the backend
+  if (apiBase === "http://localhost:5000" && !window.location.href.startsWith("file://")) {
+    apiBase = window.location.origin;
+  }
+
+  const errBox=document.getElementById('errorBox');
+  errBox.className='error-box';
+  if(!topic){ errBox.textContent='⚠ Topic is required.'; errBox.className='error-box visible'; return; }
+  if(length<100||length>5000){ errBox.textContent='⚠ Length must be 100–5000 words.'; errBox.className='error-box visible'; return; }
+
+  document.getElementById('btnGenerate').disabled=true;
+  document.getElementById('terminal').className='terminal visible';
+  document.getElementById('outputPanel').className='output-panel';
+  document.getElementById('termBody').innerHTML='';
+  ['researcher','writer','editor'].forEach(a=>{
+    document.getElementById('chip-'+a).classList.remove('active','done');
+    document.getElementById('status-'+a).textContent='STANDBY';
+  });
+  setProgress(0,'INITIALIZING CREW...');
+
+  log('Mission received → topic: "'+topic.substring(0,55)+'"');
+  log('Payload → audience: '+audience+' | tone: '+tone+' | words: '+length);
+  setProgress(5,'CONTACTING BACKEND API...');
+
+  try {
+    log('POST '+apiBase+'/generate');
+    const res=await fetch(apiBase+'/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({topic,audience,tone,length_words:length})
+    });
+
+    if(!res.ok){
+      let msg=await res.text();
+      try{ msg=JSON.parse(msg).error||msg; }catch(_){}
+      throw new Error('HTTP '+res.status+': '+msg);
+    }
+
+    const ct=res.headers.get('content-type')||'';
+    if(ct.includes('text/event-stream')){
+      await handleStream(res);
+    } else {
+      const data=await res.json();
+      await simulateProgress(data);
+      renderOutput(data);
+    }
+
+  } catch(e){
+    log('ERROR: '+e.message,'err');
+    setProgress(0,'MISSION FAILED');
+    errBox.textContent='⚠ '+e.message+'\n\nMake sure the Python backend is running:\n  python backend.py\n  (listening at '+apiBase+')';
+    errBox.className='error-box visible';
+    document.getElementById('btnGenerate').disabled=false;
+  }
+}
+
+async function simulateProgress(data){
+  setAgent('researcher','active');
+  log('Researcher activated → analyzing topic and building brief...','res');
+  setProgress(20,'RESEARCHER: Building research brief...');
+  await delay(700);
+  setProgress(40,'RESEARCHER: Brief compiled ✓');
+  log('Research brief ready → handing off to Writer','res');
+  setAgent('researcher','done');
+
+  setAgent('writer','active');
+  log('Writer activated → drafting blog post from brief...','wri');
+  setProgress(55,'WRITER: Drafting content...');
+  await delay(800);
+  setProgress(72,'WRITER: Draft complete ✓');
+  log('Draft complete → handing off to Editor','wri');
+  setAgent('writer','done');
+
+  setAgent('editor','active');
+  log('Editor activated → polishing and quality-checking...','edi');
+  setProgress(88,'EDITOR: Polishing final output...');
+  await delay(600);
+  setProgress(100,'MISSION COMPLETE ✓');
+  log('Final blog post approved ✓','edi');
+  setAgent('editor','done');
+}
+
+async function handleStream(res){
+  const reader=res.body.getReader();
+  const dec=new TextDecoder();
+  let buf='',finalData=null;
+  while(true){
+    const {done,value}=await reader.read();
+    if(done) break;
+    buf+=dec.decode(value,{stream:true});
+    const lines=buf.split('\n');
+    buf=lines.pop();
+    for(const line of lines){
+      if(!line.startsWith('data:')) continue;
+      const raw=line.slice(5).trim();
+      if(!raw) continue;
+      try{
+        const ev=JSON.parse(raw);
+        if(ev.type==='log') log(ev.message,ev.agent||'sys');
+        if(ev.type==='progress'){ setProgress(ev.pct,ev.label); if(ev.agent) setAgent(ev.agent,'active'); }
+        if(ev.type==='agent_done') setAgent(ev.agent,'done');
+        if(ev.type==='result') finalData=ev.data;
+      }catch(_){}
+    }
+  }
+  if(finalData) renderOutput(finalData);
+}
+
+function renderOutput(data){
+  const post=data.blog_post||data.result||'';
+  const meta=data.metadata||{};
+  currentPost=post;
+  currentTitle=(meta.title||'crew-ai-blog').replace(/\s+/g,'-').toLowerCase().substring(0,40);
+
+  const mc=document.getElementById('metaCards');
+  const wc=meta.word_count||post.split(/\s+/).filter(Boolean).length;
+  const cards=[
+    ['TITLE',(meta.title||'—').substring(0,36)+(meta.title&&meta.title.length>36?'…':'')],
+    ['WORDS',wc],
+    ['AGENTS','3 SEQUENTIAL'],
+    ['MODEL',meta.model||'gpt-4o-mini'],
+    ['STATUS','✓ APPROVED'],
+    ['TOKENS',meta.tokens||'N/A'],
+  ];
+  mc.innerHTML=cards.map(([k,v])=>`<div class="meta-card"><div class="meta-key">${k}</div><div class="meta-val">${v}</div></div>`).join('');
+
+  if(meta.meta_description){
+    document.getElementById('metaDescBar').innerHTML=
+      `<div class="meta-desc-bar"><strong style="color:var(--accent3)">META DESC:</strong> ${escHtml(meta.meta_description)}</div>`;
+  }
+
+  document.getElementById('blogRaw').textContent=post;
+  document.getElementById('blogRendered').innerHTML=mdToHtml(post);
+
+  const cites=data.citations||meta.citations||[];
+  if(cites.length){
+    document.getElementById('citeSection').style.display='block';
+    document.getElementById('citeList').innerHTML=cites.map((c,i)=>
+      `<div class="cite-item">[${i+1}] ${escHtml(c)}</div>`).join('');
+  }
+
+  document.getElementById('outputPanel').className='output-panel visible';
+  document.getElementById('btnGenerate').disabled=false;
+  setTimeout(()=>document.getElementById('outputPanel').scrollIntoView({behavior:'smooth'}),100);
+  log('Output rendered in UI ✓','sys');
+}
+
+function copyPost(){
+  navigator.clipboard.writeText(currentPost).then(()=>{
+    const btn=event.target;
+    const orig=btn.textContent;
+    btn.textContent='✓ COPIED!';
+    setTimeout(()=>btn.textContent=orig,1800);
+  });
+}
+function downloadPost(){
+  const blob=new Blob([currentPost],{type:'text/markdown'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=currentTitle+'.md';
+  a.click();
+}
+function resetAll(){
+  document.getElementById('outputPanel').className='output-panel';
+  document.getElementById('terminal').className='terminal';
+  document.getElementById('errorBox').className='error-box';
+  document.getElementById('termBody').innerHTML='';
+  document.getElementById('topic').value='';
+  document.getElementById('metaDescBar').innerHTML='';
+  document.getElementById('citeSection').style.display='none';
+  ['researcher','writer','editor'].forEach(a=>{
+    document.getElementById('chip-'+a).classList.remove('active','done');
+    document.getElementById('status-'+a).textContent='STANDBY';
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+</script>
+</body>
+</html>

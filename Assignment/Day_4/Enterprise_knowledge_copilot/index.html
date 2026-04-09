@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Enterprise Knowledge Copilot</title>
+<style>
+:root{
+  --bg:#080c14;--bg2:#0d1221;--bg3:#111827;--bg4:#1a2236;
+  --accent:#00d4ff;--accent2:#7c3aed;--accent3:#10b981;
+  --warn:#f59e0b;--danger:#ef4444;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --border:#1e293b;--border2:#2d3f5e;
+  --glass:rgba(13,18,33,0.8);
+  --glow:0 0 20px rgba(0,212,255,0.15);
+  --font-mono:'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  min-height:100vh;overflow-x:hidden;
+}
+
+/* Background grid */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0;
+}
+
+/* Floating orbs */
+.orb{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0;}
+.orb1{width:400px;height:400px;background:rgba(0,212,255,0.05);top:-100px;right:-100px;}
+.orb2{width:300px;height:300px;background:rgba(124,58,237,0.06);bottom:100px;left:-80px;}
+
+/* Layout */
+.app{position:relative;z-index:1;display:grid;grid-template-rows:auto 1fr;min-height:100vh;}
+
+/* Header */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 28px;
+  background:rgba(8,12,20,0.9);
+  border-bottom:1px solid var(--border2);
+  backdrop-filter:blur(20px);
+  position:sticky;top:0;z-index:100;
+}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-icon{
+  width:36px;height:36px;border-radius:8px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+}
+.logo-text{font-size:16px;font-weight:700;letter-spacing:0.5px;}
+.logo-text span{color:var(--accent);}
+.header-right{display:flex;align-items:center;gap:12px;}
+.status-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--accent3);
+  box-shadow:0 0 8px var(--accent3);animation:pulse 2s infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.version-badge{
+  font-size:11px;color:var(--text3);font-family:var(--font-mono);
+  background:var(--bg3);border:1px solid var(--border);
+  padding:3px 8px;border-radius:4px;
+}
+
+/* Main grid */
+main{display:grid;grid-template-columns:280px 1fr 300px;gap:0;height:calc(100vh - 61px);}
+
+/* Sidebar */
+.sidebar{
+  background:var(--bg2);border-right:1px solid var(--border);
+  overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:16px;
+}
+.panel{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;
+}
+.panel-header{
+  padding:10px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  user-select:none;transition:background .15s;
+}
+.panel-header:hover{background:var(--bg4);}
+.panel-icon{font-size:14px;}
+.panel-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text2);}
+.panel-chevron{margin-left:auto;font-size:10px;color:var(--text3);transition:transform .2s;}
+.panel.collapsed .panel-chevron{transform:rotate(-90deg);}
+.panel.collapsed .panel-body{display:none;}
+.panel-body{padding:12px 14px;}
+
+/* Role selector */
+.role-selector label{font-size:11px;color:var(--text3);display:block;margin-bottom:6px;}
+.role-select{
+  width:100%;background:var(--bg4);border:1px solid var(--border2);
+  color:var(--text);padding:8px 10px;border-radius:6px;font-size:13px;
+  outline:none;cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;
+}
+.role-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;}
+.role-badge{
+  font-size:10px;padding:3px 7px;border-radius:20px;font-family:var(--font-mono);
+  border:1px solid;
+}
+.rb-admin{color:#f59e0b;border-color:#f59e0b;background:rgba(245,158,11,.08);}
+.rb-manager{color:#8b5cf6;border-color:#8b5cf6;background:rgba(139,92,246,.08);}
+.rb-analyst{color:var(--accent);border-color:var(--accent);background:rgba(0,212,255,.08);}
+.rb-viewer{color:var(--accent3);border-color:var(--accent3);background:rgba(16,185,129,.08);}
+.rb-guest{color:var(--text3);border-color:var(--text3);background:rgba(100,116,139,.08);}
+.role-desc{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;}
+
+/* Ingest panel */
+.ingest-locked{text-align:center;padding:8px 0;}
+.lock-icon{font-size:28px;margin-bottom:6px;}
+.lock-msg{font-size:11px;color:var(--text3);line-height:1.5;}
+.ingest-form{display:flex;flex-direction:column;gap:8px;}
+.ingest-form input,.ingest-form textarea,.ingest-form select{
+  background:var(--bg4);border:1px solid var(--border2);color:var(--text);
+  padding:7px 10px;border-radius:6px;font-size:12px;outline:none;
+  font-family:inherit;width:100%;
+}
+.ingest-form textarea{resize:vertical;min-height:80px;font-family:var(--font-mono);font-size:11px;}
+.ingest-form input:focus,.ingest-form textarea:focus{border-color:var(--accent);}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:8px 14px;border-radius:6px;border:none;cursor:pointer;
+  font-size:12px;font-weight:600;transition:all .2s;outline:none;
+}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#0099cc);color:#000;letter-spacing:0.3px;}
+.btn-primary:hover{opacity:0.88;transform:translateY(-1px);}
+.btn-primary:active{transform:none;}
+.btn-admin{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;}
+.btn-admin:hover{opacity:0.88;}
+.btn-sm{padding:5px 10px;font-size:11px;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none!important;}
+.btn-full{width:100%;}
+
+/* Cost dashboard */
+.cost-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.cost-card{
+  background:var(--bg4);border:1px solid var(--border);border-radius:6px;
+  padding:8px 10px;
+}
+.cost-label{font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px;}
+.cost-value{font-size:16px;font-weight:700;font-family:var(--font-mono);color:var(--accent);}
+.cost-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+.cost-separator{grid-column:1/-1;border:none;border-top:1px solid var(--border);margin:2px 0;}
+.per-role-table{width:100%;font-size:11px;border-collapse:collapse;margin-top:6px;}
+.per-role-table th{color:var(--text3);text-align:left;padding:3px 4px;font-weight:500;}
+.per-role-table td{padding:3px 4px;font-family:var(--font-mono);}
+.per-role-table tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+
+/* Center content */
+.content{display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--bg);}
+
+/* Search area */
+.search-area{padding:24px 28px 0;flex-shrink:0;}
+.search-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
+.search-wrapper{position:relative;}
+.search-input{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);
+  color:var(--text);padding:14px 56px 14px 18px;border-radius:10px;
+  font-size:15px;outline:none;transition:border-color .2s,box-shadow .2s;
+  font-family:inherit;
+}
+.search-input:focus{border-color:var(--accent);box-shadow:var(--glow);}
+.search-btn{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:linear-gradient(135deg,var(--accent),#0099cc);border:none;
+  width:36px;height:36px;border-radius:7px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  color:#000;font-size:16px;transition:opacity .2s;
+}
+.search-btn:hover{opacity:0.85;}
+.suggestions{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
+  z-index:50;overflow:hidden;display:none;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+.suggestions.show{display:block;}
+.suggestion-item{
+  padding:10px 16px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);
+  transition:background .1s;display:flex;align-items:center;gap:8px;
+}
+.suggestion-item:last-child{border-bottom:none;}
+.suggestion-item:hover{background:var(--bg4);}
+.suggestion-item .sug-icon{color:var(--text3);font-size:12px;}
+
+/* Keyboard hints */
+.hints{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;}
+.hint{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;}
+.kbd{
+  background:var(--bg4);border:1px solid var(--border2);padding:1px 5px;
+  border-radius:3px;font-family:var(--font-mono);font-size:10px;
+}
+
+/* Results area */
+.results-area{flex:1;overflow-y:auto;padding:20px 28px 28px;}
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;text-align:center;
+}
+.empty-icon{font-size:56px;margin-bottom:16px;opacity:0.3;}
+.empty-title{font-size:18px;font-weight:600;color:var(--text2);margin-bottom:8px;}
+.empty-sub{font-size:13px;color:var(--text3);max-width:320px;line-height:1.6;}
+.quick-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;justify-content:center;}
+.chip{
+  background:var(--bg3);border:1px solid var(--border2);padding:6px 12px;
+  border-radius:20px;font-size:12px;cursor:pointer;transition:all .2s;color:var(--text2);
+}
+.chip:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.05);}
+
+/* Answer card */
+.answer-card{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:12px;
+  overflow:hidden;margin-bottom:16px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.3);
+}
+.answer-header{
+  padding:12px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;background:var(--bg4);
+}
+.answer-tag{
+  font-size:10px;padding:3px 8px;border-radius:4px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.5px;
+}
+.tag-openai{background:rgba(16,185,129,.15);color:var(--accent3);border:1px solid rgba(16,185,129,.3);}
+.tag-mistral{background:rgba(124,58,237,.15);color:#a78bfa;border:1px solid rgba(124,58,237,.3);}
+.tag-demo{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.3);}
+.answer-meta{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.meta-chip{font-size:10px;color:var(--text3);font-family:var(--font-mono);}
+.answer-body{padding:18px;}
+.answer-text{font-size:14px;line-height:1.8;color:var(--text);white-space:pre-wrap;}
+
+/* Citations */
+.citations-header{
+  padding:10px 18px;background:rgba(0,212,255,0.03);border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;
+  cursor:pointer;font-size:12px;color:var(--text2);font-weight:600;
+  transition:background .15s;
+}
+.citations-header:hover{background:rgba(0,212,255,0.06);}
+.citations-count{
+  background:rgba(0,212,255,.15);color:var(--accent);
+  padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;
+}
+.citations-body{padding:14px 18px;display:flex;flex-direction:column;gap:8px;}
+.citation-card{
+  background:var(--bg4);border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;cursor:pointer;transition:border-color .15s;
+}
+.citation-card:hover{border-color:var(--border2);}
+.citation-card.expanded{border-color:var(--accent2);}
+.citation-top{display:flex;align-items:center;gap:8px;}
+.citation-rank{
+  width:20px;height:20px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
+  color:var(--text3);flex-shrink:0;
+}
+.citation-filename{font-size:12px;font-weight:600;color:var(--accent);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.citation-score{
+  font-size:10px;font-family:var(--font-mono);padding:2px 6px;border-radius:4px;
+  background:rgba(16,185,129,.1);color:var(--accent3);flex-shrink:0;
+}
+.citation-snippet{
+  margin-top:8px;font-size:12px;color:var(--text2);line-height:1.6;
+  display:none;font-family:var(--font-mono);border-left:2px solid var(--border2);
+  padding-left:8px;
+}
+.citation-card.expanded .citation-snippet{display:block;}
+.citation-id{font-size:10px;color:var(--text3);margin-top:6px;font-family:var(--font-mono);}
+
+/* Loading */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;gap:16px;}
+.spinner{
+  width:40px;height:40px;border:2px solid var(--border2);
+  border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:var(--text3);}
+.loading-dots::after{content:'...';animation:dots 1.5s steps(4,end) infinite;}
+@keyframes dots{0%,20%{content:'.'}40%{content:'..'}60%,100%{content:'...'}}
+
+/* Toast */
+#toast{
+  position:fixed;bottom:24px;right:24px;z-index:1000;
+  display:flex;flex-direction:column;gap:8px;
+}
+.toast{
+  padding:12px 16px;border-radius:8px;font-size:13px;
+  min-width:240px;max-width:360px;display:flex;align-items:center;gap:10px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);animation:toastIn .2s ease;
+  border:1px solid;
+}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+.toast-success{background:#0a1f17;border-color:var(--accent3);color:var(--accent3);}
+.toast-error{background:#1f0a0a;border-color:var(--danger);color:var(--danger);}
+.toast-info{background:var(--bg3);border-color:var(--border2);color:var(--text2);}
+
+/* Right panel */
+.right-panel{
+  background:var(--bg2);border-left:1px solid var(--border);
+  overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:16px;
+}
+
+/* Observability */
+.obs-tabs{display:flex;gap:2px;margin-bottom:10px;}
+.obs-tab{
+  flex:1;padding:5px 4px;font-size:10px;text-align:center;
+  background:var(--bg4);border:1px solid var(--border);border-radius:4px;
+  cursor:pointer;color:var(--text3);transition:all .15s;
+}
+.obs-tab.active{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent);}
+.log-stream{
+  background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  height:200px;overflow-y:auto;padding:8px;font-family:var(--font-mono);
+  font-size:10px;
+}
+.log-entry{
+  padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.03);
+  display:grid;grid-template-columns:auto 1fr;gap:6px;line-height:1.4;
+}
+.log-level{font-weight:700;flex-shrink:0;}
+.log-INFO{color:var(--accent);}
+.log-WARNING{color:var(--warn);}
+.log-ERROR{color:var(--danger);}
+.log-msg{color:var(--text2);word-break:break-all;}
+.log-time{color:var(--text3);font-size:9px;}
+
+/* Metrics panel */
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.metric-card{
+  background:var(--bg4);border:1px solid var(--border);border-radius:6px;
+  padding:8px 10px;text-align:center;
+}
+.metric-val{font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--accent);}
+.metric-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+.health-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);}
+.health-row:last-child{border:none;}
+.health-key{font-size:11px;color:var(--text2);flex:1;}
+.health-val{font-size:11px;font-family:var(--font-mono);}
+.hv-ok{color:var(--accent3);}
+.hv-demo{color:var(--warn);}
+.hv-err{color:var(--danger);}
+.refresh-btn{
+  width:100%;background:var(--bg4);border:1px solid var(--border);color:var(--text2);
+  padding:6px;border-radius:5px;cursor:pointer;font-size:11px;transition:background .15s;
+}
+.refresh-btn:hover{background:var(--bg3);border-color:var(--border2);}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text3);}
+
+/* Responsive */
+@media(max-width:1024px){main{grid-template-columns:240px 1fr;}.right-panel{display:none;}}
+@media(max-width:640px){main{grid-template-columns:1fr;}.sidebar{display:none;}}
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="app">
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🧠</div>
+    <div class="logo-text">Enterprise <span>Knowledge</span> Copilot</div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot" id="statusDot" title="System Status"></div>
+    <span class="version-badge">v1.0.0</span>
+  </div>
+</header>
+
+<main>
+  <!-- Left Sidebar -->
+  <aside class="sidebar">
+
+    <!-- Role Panel -->
+    <div class="panel" id="rolePanel">
+      <div class="panel-header" onclick="togglePanel('rolePanel')">
+        <span class="panel-icon">🔐</span>
+        <span class="panel-title">Access Control</span>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body role-selector">
+        <label>Current Role</label>
+        <select class="role-select" id="roleSelect" onchange="onRoleChange()">
+          <option value="admin">👑 Admin</option>
+          <option value="manager">💼 Manager</option>
+          <option value="analyst" selected>📊 Analyst</option>
+          <option value="viewer">👁️ Viewer</option>
+          <option value="guest">🌐 Guest</option>
+        </select>
+        <div class="role-badges" id="roleBadges"></div>
+        <div class="role-desc" id="roleDesc"></div>
+      </div>
+    </div>
+
+    <!-- Ingest Panel -->
+    <div class="panel" id="ingestPanel">
+      <div class="panel-header" onclick="togglePanel('ingestPanel')">
+        <span class="panel-icon">📥</span>
+        <span class="panel-title">Document Ingest</span>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body" id="ingestBody">
+        <div class="ingest-locked" id="ingestLocked">
+          <div class="lock-icon">🔒</div>
+          <div class="lock-msg">Ingest requires <strong>Admin</strong> role.<br>Switch role to access.</div>
+        </div>
+        <div class="ingest-form" id="ingestForm" style="display:none">
+          <input type="text" id="ingestFilename" placeholder="Filename (e.g. policy.pdf)"/>
+          <select id="ingestRoles" style="background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:7px 10px;border-radius:6px;font-size:12px;outline:none;">
+            <option value="public">🌐 public</option>
+            <option value="internal" selected>🏢 internal</option>
+            <option value="confidential">🔒 confidential</option>
+            <option value="restricted">⛔ restricted</option>
+          </select>
+          <textarea id="ingestText" placeholder="Paste document text here..."></textarea>
+          <button class="btn btn-admin btn-full" id="ingestBtn" onclick="doIngest()">⬆ Ingest Document</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cost Dashboard -->
+    <div class="panel" id="costPanel">
+      <div class="panel-header" onclick="togglePanel('costPanel')">
+        <span class="panel-icon">💰</span>
+        <span class="panel-title">Cost Dashboard</span>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
+        <div class="cost-grid">
+          <div class="cost-card">
+            <div class="cost-label">Total Cost</div>
+            <div class="cost-value" id="costTotal">$0.000000</div>
+            <div class="cost-sub">estimated</div>
+          </div>
+          <div class="cost-card">
+            <div class="cost-label">Last Query</div>
+            <div class="cost-value" id="costLast">$0.000000</div>
+            <div class="cost-sub">est. USD</div>
+          </div>
+          <div class="cost-card">
+            <div class="cost-label">Tokens In</div>
+            <div class="cost-value" id="tokensIn" style="font-size:14px">0</div>
+            <div class="cost-sub">input</div>
+          </div>
+          <div class="cost-card">
+            <div class="cost-label">Tokens Out</div>
+            <div class="cost-value" id="tokensOut" style="font-size:14px">0</div>
+            <div class="cost-sub">output</div>
+          </div>
+        </div>
+        <hr class="cost-separator" style="margin:10px 0;border-color:var(--border);">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600;">Per-Role Breakdown</div>
+        <table class="per-role-table">
+          <thead><tr><th>Role</th><th>Req</th><th>Cost</th></tr></thead>
+          <tbody id="perRoleTable"><tr><td colspan="3" style="color:var(--text3);text-align:center;padding:8px;">No data yet</td></tr></tbody>
+        </table>
+        <div style="margin-top:8px;font-size:10px;color:var(--text3);line-height:1.5;">
+          ⚠ Estimates only. GPT-4o-mini: $0.15/1M in, $0.60/1M out. Embedding: $0.10/1M.
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- Center Content -->
+  <section class="content">
+    <div class="search-area">
+      <div class="search-label">Ask your knowledge base</div>
+      <div class="search-wrapper">
+        <input type="text" class="search-input" id="searchInput"
+          placeholder="What is our remote work policy? How did revenue grow in 2024?..."
+          oninput="onSearchInput()" onkeydown="onSearchKey(event)" autocomplete="off"/>
+        <button class="search-btn" onclick="doQuery()" title="Search (Enter)">⌕</button>
+        <div class="suggestions" id="suggestions"></div>
+      </div>
+      <div class="hints">
+        <span class="hint"><kbd class="kbd">Enter</kbd> search</span>
+        <span class="hint"><kbd class="kbd">↑↓</kbd> suggestions</span>
+        <span class="hint"><kbd class="kbd">Esc</kbd> clear</span>
+        <span class="hint"><kbd class="kbd">Ctrl+K</kbd> focus</span>
+      </div>
+    </div>
+    <div class="results-area" id="resultsArea">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">Ask anything about your documents</div>
+        <div class="empty-sub">The copilot searches across all indexed documents using hybrid BM25 + vector retrieval, filtered by your current role.</div>
+        <div class="quick-chips">
+          <div class="chip" onclick="setQuery('What is our remote work policy?')">Remote work policy</div>
+          <div class="chip" onclick="setQuery('How did revenue perform in 2024?')">2024 revenue</div>
+          <div class="chip" onclick="setQuery('What are the security requirements for data encryption?')">Security requirements</div>
+          <div class="chip" onclick="setQuery('What are the onboarding steps for new employees?')">Employee onboarding</div>
+          <div class="chip" onclick="setQuery('What are the Q3 technology priorities?')">Q3 tech priorities</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Right Panel -->
+  <aside class="right-panel">
+
+    <!-- Health & Metrics -->
+    <div class="panel" id="healthPanel">
+      <div class="panel-header" onclick="togglePanel('healthPanel')">
+        <span class="panel-icon">📡</span>
+        <span class="panel-title">System Health</span>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
+        <div id="healthRows">
+          <div class="health-row"><span class="health-key">Status</span><span class="health-val hv-ok">—</span></div>
+        </div>
+        <button class="refresh-btn" onclick="refreshHealth()" style="margin-top:8px;">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- Live Metrics -->
+    <div class="panel" id="metricsPanel">
+      <div class="panel-header" onclick="togglePanel('metricsPanel')">
+        <span class="panel-icon">📊</span>
+        <span class="panel-title">Live Metrics</span>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
+        <div class="metrics-grid">
+          <div class="metric-card"><div class="metric-val" id="mRequests">0</div><div class="metric-lbl">Requests</div></div>
+          <div class="metric-card"><div class="metric-val" id="mErrors">0</div><div class="metric-lbl">Errors</div></div>
+          <div class="metric-card"><div class="metric-val" id="mRetLat">—</div><div class="metric-lbl">Retr. ms</div></div>
+          <div class="metric-card"><div class="metric-val" id="mLlmLat">—</div><div class="metric-lbl">LLM ms</div></div>
+        </div>
+        <button class="refresh-btn" onclick="refreshMetrics()" style="margin-top:8px;">↻ Refresh Metrics</button>
+      </div>
+    </div>
+
+    <!-- Observability / Logs -->
+    <div class="panel" id="logsPanel">
+      <div class="panel-header" onclick="togglePanel('logsPanel')">
+        <span class="panel-icon">🔭</span>
+        <span class="panel-title">Observability</span>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
+        <div class="obs-tabs">
+          <div class="obs-tab active" id="tabLogs" onclick="obsTab('logs')">Logs</div>
+          <div class="obs-tab" id="tabTrace" onclick="obsTab('trace')">Trace</div>
+        </div>
+        <div id="logStream" class="log-stream">
+          <div style="color:var(--text3);font-size:10px;text-align:center;padding:20px 0;">No logs yet — run a query</div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="refresh-btn" onclick="refreshLogs()" style="flex:1;">↻ Refresh</button>
+          <button class="refresh-btn" onclick="clearLogs()" style="flex:1;">✕ Clear</button>
+        </div>
+        <div id="traceView" style="display:none;">
+          <div style="font-size:11px;color:var(--text3);text-align:center;padding:20px 0;">Run a query to see trace spans</div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+</main>
+</div>
+
+<!-- Toast container -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════════
+const state = {
+  role: 'analyst',
+  lastQuery: '',
+  lastMetrics: null,
+  citationsOpen: {},
+  obsTab: 'logs',
+  localLogs: [],
+};
+
+const ROLE_INFO = {
+  admin:   { label:'Admin',   color:'rb-admin',   desc:'Full access: can query all docs and ingest new documents.', groups:['public','internal','confidential','restricted'] },
+  manager: { label:'Manager', color:'rb-manager', desc:'Can query public, internal, and confidential documents.', groups:['public','internal','confidential'] },
+  analyst: { label:'Analyst', color:'rb-analyst', desc:'Can query public and internal documents.', groups:['public','internal'] },
+  viewer:  { label:'Viewer',  color:'rb-viewer',  desc:'Can query public documents only.', groups:['public'] },
+  guest:   { label:'Guest',   color:'rb-guest',   desc:'Read-only access to public documents only.', groups:['public'] },
+};
+
+const SUGGESTIONS = [
+  'What is our remote work policy?',
+  'How did revenue grow in 2024?',
+  'What are the security requirements for data encryption?',
+  'What are the Q3 technology priorities?',
+  'Explain the onboarding process for new employees',
+  'What is the EBITDA margin?',
+  'How many days are access logs retained?',
+  'What cloud services are we migrating to?',
+];
+
+// ═══════════════════════════════════════════════════════════
+// Role Management
+// ═══════════════════════════════════════════════════════════
+function onRoleChange() {
+  state.role = document.getElementById('roleSelect').value;
+  updateRoleUI();
+  showToast(`Switched to ${state.role} role`, 'info');
+}
+
+function updateRoleUI() {
+  const info = ROLE_INFO[state.role];
+  const badges = document.getElementById('roleBadges');
+  badges.innerHTML = info.groups.map(g =>
+    `<span class="role-badge rb-analyst">${g}</span>`
+  ).join('');
+  document.getElementById('roleDesc').textContent = info.desc;
+
+  const locked = document.getElementById('ingestLocked');
+  const form   = document.getElementById('ingestForm');
+  if (state.role === 'admin') {
+    locked.style.display = 'none'; form.style.display = 'flex';
+  } else {
+    locked.style.display = 'block'; form.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Search & Query
+// ═══════════════════════════════════════════════════════════
+function setQuery(text) {
+  document.getElementById('searchInput').value = text;
+  doQuery();
+}
+
+function onSearchInput() {
+  const val = document.getElementById('searchInput').value.toLowerCase();
+  const sug = document.getElementById('suggestions');
+  if (!val || val.length < 2) { sug.classList.remove('show'); return; }
+  const matches = SUGGESTIONS.filter(s => s.toLowerCase().includes(val)).slice(0, 5);
+  if (!matches.length) { sug.classList.remove('show'); return; }
+  sug.innerHTML = matches.map(s =>
+    `<div class="suggestion-item" onclick="setQuery('${s.replace(/'/g,"\\'")}')">
+       <span class="sug-icon">↗</span>${s}
+     </div>`
+  ).join('');
+  sug.classList.add('show');
+}
+
+function onSearchKey(e) {
+  if (e.key === 'Enter')  { e.preventDefault(); doQuery(); }
+  if (e.key === 'Escape') { document.getElementById('searchInput').value=''; document.getElementById('suggestions').classList.remove('show'); }
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key==='k') {
+    e.preventDefault(); document.getElementById('searchInput').focus();
+  }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrapper')) {
+    document.getElementById('suggestions').classList.remove('show');
+  }
+});
+
+async function doQuery() {
+  const query = document.getElementById('searchInput').value.trim();
+  if (!query) { showToast('Please enter a question', 'error'); return; }
+  document.getElementById('suggestions').classList.remove('show');
+  state.lastQuery = query;
+  showLoading();
+
+  const t0 = Date.now();
+  try {
+    const res = await fetch('/api/query', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ query, role: state.role }),
+    });
+    const data = await res.json();
+    const elapsed = Date.now()-t0;
+    if (!res.ok) throw new Error(data.error || 'Query failed');
+    renderAnswer(data, elapsed);
+    updateCostUI(data.metrics);
+    if (data.metrics) addLocalTrace(data.metrics, query);
+    await refreshMetrics();
+    await refreshLogs();
+  } catch(err) {
+    renderError(err.message);
+    showToast(err.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Rendering
+// ═══════════════════════════════════════════════════════════
+function showLoading() {
+  document.getElementById('emptyState') && (document.getElementById('emptyState').style.display='none');
+  document.getElementById('resultsArea').innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <div class="loading-text">Searching knowledge base<span class="loading-dots"></span></div>
+    </div>`;
+}
+
+function renderAnswer(data, elapsed) {
+  const provider = data.metrics?.provider || 'unknown';
+  const tagClass = provider==='openai'?'tag-openai':provider==='mistral'?'tag-mistral':'tag-demo';
+  const demoNote = data.metrics?.demo_mode ? '<span class="answer-tag tag-demo" style="margin-left:4px">DEMO</span>' : '';
+
+  const citHtml = (data.citations||[]).length ? `
+    <div class="citations-header" onclick="toggleCitations()">
+      📎 Retrieved Sources
+      <span class="citations-count">${data.citations.length}</span>
+      <span id="citChevron" style="margin-left:auto;font-size:10px;color:var(--text3)">▼</span>
+    </div>
+    <div id="citationsBody" class="citations-body">
+      ${(data.citations||[]).map((c,i) => `
+        <div class="citation-card" id="cit${i}" onclick="toggleCitation(${i})">
+          <div class="citation-top">
+            <div class="citation-rank">${i+1}</div>
+            <div class="citation-filename" title="${c.filename}">${c.filename}</div>
+            <div class="citation-score">${(c.score*100).toFixed(0)}%</div>
+          </div>
+          <div class="citation-snippet">${escHtml(c.snippet)}...</div>
+          <div class="citation-id">${c.chunk_id}</div>
+        </div>`).join('')}
+    </div>` : '';
+
+  document.getElementById('resultsArea').innerHTML = `
+    <div class="answer-card">
+      <div class="answer-header">
+        <span style="font-size:13px;font-weight:600;">💬 Answer</span>
+        <span class="answer-tag ${tagClass}">${provider}</span>
+        ${demoNote}
+        <div class="answer-meta">
+          <span class="meta-chip">⏱ ${elapsed}ms</span>
+          <span class="meta-chip">🔖 ${data.metrics?.tokens_out||0} tok</span>
+        </div>
+      </div>
+      <div class="answer-body">
+        <div class="answer-text" id="answerText">${escHtml(data.answer||'')}</div>
+      </div>
+      ${citHtml}
+    </div>`;
+}
+
+function renderError(msg) {
+  document.getElementById('resultsArea').innerHTML = `
+    <div class="answer-card">
+      <div class="answer-header">
+        <span style="font-size:13px;font-weight:600;color:var(--danger);">⚠ Error</span>
+      </div>
+      <div class="answer-body">
+        <div class="answer-text" style="color:var(--danger);">${escHtml(msg)}</div>
+      </div>
+    </div>`;
+}
+
+function toggleCitations() {
+  const body = document.getElementById('citationsBody');
+  const chev = document.getElementById('citChevron');
+  const hidden = body.style.display==='none';
+  body.style.display = hidden ? 'flex' : 'none';
+  chev.textContent   = hidden ? '▼' : '▶';
+}
+
+function toggleCitation(i) {
+  const card = document.getElementById('cit'+i);
+  card.classList.toggle('expanded');
+}
+
+// ═══════════════════════════════════════════════════════════
+// Ingest
+// ═══════════════════════════════════════════════════════════
+async function doIngest() {
+  const text     = document.getElementById('ingestText').value.trim();
+  const filename = document.getElementById('ingestFilename').value.trim() || 'uploaded_doc.txt';
+  const roles    = document.getElementById('ingestRoles').value;
+  if (!text) { showToast('Paste some document text first', 'error'); return; }
+  const btn = document.getElementById('ingestBtn');
+  btn.disabled = true; btn.textContent = '⏳ Ingesting...';
+  try {
+    const res = await fetch('/api/ingest', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-User-Role':'admin','Authorization':'Bearer demo-admin-secret'},
+      body: JSON.stringify({ text, filename, allowed_roles: [roles] }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error||'Ingest failed');
+    showToast(`✅ Ingested ${data.chunks_created} chunks from ${filename}`, 'success');
+    document.getElementById('ingestText').value='';
+  } catch(err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '⬆ Ingest Document';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Cost UI
+// ═══════════════════════════════════════════════════════════
+function updateCostUI(m) {
+  if (!m) return;
+  // Refresh full metrics from backend for accuracy
+  refreshMetrics();
+}
+
+async function updateCostFromSnapshot(snap) {
+  document.getElementById('costTotal').textContent  = '$'+(snap.total_cost_usd||0).toFixed(6);
+  document.getElementById('costLast').textContent   = '$'+(snap.last_request_cost||0).toFixed(6);
+  document.getElementById('tokensIn').textContent   = fmtNum(snap.total_tokens_in||0);
+  document.getElementById('tokensOut').textContent  = fmtNum(snap.total_tokens_out||0);
+
+  const tbody = document.getElementById('perRoleTable');
+  const roles = snap.per_role || {};
+  if (!Object.keys(roles).length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="color:var(--text3);text-align:center;padding:8px;">No data yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = Object.entries(roles).map(([r,v]) =>
+    `<tr><td style="color:var(--text2)">${r}</td><td style="color:var(--accent)">${v.requests}</td><td style="color:var(--accent3)">$${(v.cost_usd||0).toFixed(5)}</td></tr>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// Health & Metrics
+// ═══════════════════════════════════════════════════════════
+async function refreshHealth() {
+  try {
+    const res  = await fetch('/health');
+    const data = await res.json();
+    const dot  = document.getElementById('statusDot');
+    dot.style.background = data.status==='ok' ? 'var(--accent3)' : 'var(--danger)';
+    document.getElementById('healthRows').innerHTML = [
+      ['Status',        data.status,         data.status==='ok'?'hv-ok':'hv-err'],
+      ['Azure Search',  data.azure_search,    data.azure_search==='configured'?'hv-ok':'hv-demo'],
+      ['OpenAI',        data.openai,          data.openai==='configured'?'hv-ok':'hv-demo'],
+      ['Version',       data.version,         'hv-ok'],
+    ].map(([k,v,cls]) => `<div class="health-row"><span class="health-key">${k}</span><span class="health-val ${cls}">${v}</span></div>`).join('');
+  } catch(e) {
+    document.getElementById('statusDot').style.background='var(--danger)';
+  }
+}
+
+async function refreshMetrics() {
+  try {
+    const res  = await fetch('/api/metrics-json');
+    const snap = await res.json();
+    document.getElementById('mRequests').textContent = snap.total_requests||0;
+    document.getElementById('mErrors').textContent   = snap.total_errors||0;
+    document.getElementById('mRetLat').textContent   = (snap.avg_retrieval_ms||0)+'ms';
+    document.getElementById('mLlmLat').textContent   = (snap.avg_llm_ms||0)+'ms';
+    updateCostFromSnapshot(snap);
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════
+// Logs & Observability
+// ═══════════════════════════════════════════════════════════
+function obsTab(tab) {
+  state.obsTab = tab;
+  document.getElementById('tabLogs').classList.toggle('active', tab==='logs');
+  document.getElementById('tabTrace').classList.toggle('active', tab==='trace');
+  document.getElementById('logStream').style.display  = tab==='logs'  ? 'block' : 'none';
+  document.getElementById('traceView').style.display  = tab==='trace' ? 'block' : 'none';
+}
+
+async function refreshLogs() {
+  try {
+    const res  = await fetch('/api/logs');
+    const data = await res.json();
+    renderLogs(data.logs||[]);
+  } catch(e) {}
+}
+
+function renderLogs(logs) {
+  if (!logs.length) return;
+  const stream = document.getElementById('logStream');
+  stream.innerHTML = logs.slice().reverse().map(l => {
+    const lvl = l.level||'INFO';
+    const msg = l.message||'';
+    const ts  = (l.timestamp||'').split('T')[1]?.replace('Z','')||'';
+    const extras = Object.entries(l).filter(([k])=>!['timestamp','level','message','logger'].includes(k)).map(([k,v])=>`${k}=${JSON.stringify(v)}`).join(' ');
+    return `<div class="log-entry">
+      <span class="log-level log-${lvl}">${lvl[0]}</span>
+      <span class="log-msg"><span class="log-time">${ts}</span> ${escHtml(msg)} <span style="color:var(--text3);font-size:9px">${escHtml(extras)}</span></span>
+    </div>`;
+  }).join('');
+}
+
+function clearLogs() {
+  document.getElementById('logStream').innerHTML = '<div style="color:var(--text3);font-size:10px;text-align:center;padding:20px 0;">Cleared</div>';
+}
+
+function addLocalTrace(m, query) {
+  const traceView = document.getElementById('traceView');
+  const spans = [
+    { name:'hybrid_retrieve', ms: m.retrieval_ms, color:'var(--accent)' },
+    { name:'llm_synthesis',   ms: m.llm_ms,       color:'var(--accent2)' },
+  ];
+  const total = m.retrieval_ms + m.llm_ms;
+  const bars = spans.map(s => {
+    const pct = total ? (s.ms/total*100).toFixed(1) : 50;
+    return `<div style="margin-bottom:8px;">
+      <div style="font-size:10px;color:var(--text2);margin-bottom:3px;display:flex;justify-content:space-between;">
+        <span>${s.name}</span><span style="color:${s.color}">${s.ms}ms</span>
+      </div>
+      <div style="background:var(--bg4);border-radius:3px;height:6px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${s.color};border-radius:3px;"></div>
+      </div>
+    </div>`;
+  }).join('');
+  traceView.innerHTML = `
+    <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Req: ${m.request_id} | ${m.provider}</div>
+    ${bars}
+    <div style="font-size:10px;color:var(--text3);margin-top:8px;">
+      ${m.tokens_in} in → ${m.tokens_out} out | $${(m.cost_usd||0).toFixed(8)}
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Toast
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, type='info') {
+  const icons = {success:'✓', error:'✕', info:'ℹ'};
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<span>${icons[type]||'•'}</span><span>${escHtml(msg)}</span>`;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(()=>el.remove(), 4000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Panel collapse
+// ═══════════════════════════════════════════════════════════
+function togglePanel(id) {
+  document.getElementById(id).classList.toggle('collapsed');
+}
+
+// ═══════════════════════════════════════════════════════════
+// Utilities
+// ═══════════════════════════════════════════════════════════
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtNum(n) { return Number(n).toLocaleString(); }
+
+// ═══════════════════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════════════════
+(async function init() {
+  updateRoleUI();
+  await refreshHealth();
+  await refreshMetrics();
+  // Auto-refresh every 30s
+  setInterval(refreshMetrics, 30000);
+  setInterval(refreshHealth,  60000);
+})();
+</script>
+</body>
+</html>

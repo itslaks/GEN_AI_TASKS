@@ -1,0 +1,66 @@
+---
+research_digital_life_topic:
+  description: Research {topic} within the Digital Life/Internet Literacy domain for
+    {audience} audience. Focus on practical, user-facing guidance and safety considerations.
+    Gather information about privacy implications, security best practices, common
+    misconceptions, and actionable steps users can take. Research current trends,
+    emerging threats, and platform-specific guidance relevant to the topic.
+  expected_output: "A structured research brief containing: \n1. Key concepts and
+    definitions related to {topic}\n2. Target audience assumptions and knowledge level
+    for {audience}\n3. Do/don't guidance and best practices\n4. Common misconceptions
+    and myths to address\n5. Safety and privacy checklist relevant to {topic}\n6.
+    6-10 \"suggested sources to verify\" (clearly labeled as sources to verify, not
+    fabricated citations)\n7. Current trends and emerging considerations\n8. Platform-specific
+    guidance if applicable\nAll content must focus on user empowerment and safe digital
+    practices."
+  agent: digital_life_research_specialist
+write_digital_life_blog_post:
+  description: Using the research brief, write a comprehensive blog post about {topic}
+    for {audience} in a {tone} voice. The blog post must be approximately {length_words}
+    words and follow the Digital Life/Internet Literacy domain requirements. Structure
+    the content with clear H2/H3 headings, short paragraphs, bullet lists, and practical
+    examples. Include a "What to do today" section with immediate actionable steps.
+    Ensure content is trustworthy, modern, practical, and non-alarmist.
+  expected_output: |-
+    A complete blog post in Markdown format including:
+    1. Compelling title optimized for {audience}
+    2. Meta description (150-160 characters)
+    3. Article outline with main headings
+    4. Full blog post content (~{length_words} words) with:
+       - Clear H2/H3 headings structure
+       - Short, readable paragraphs
+       - Bullet lists and actionable checklists
+       - Practical examples and scenarios
+       - "What to do today" section with immediate steps
+       - Quick reference checklist box
+    5. Suggested citations list (labeled as "sources to verify")
+    6. Content must maintain {tone} voice and focus on user empowerment and digital safety
+  agent: digital_life_content_writer
+  context:
+  - research_digital_life_topic
+edit_and_finalize_content:
+  description: 'Review and edit the blog post about {topic} for {audience} using {tone}
+    approach. CRITICALLY IMPORTANT: The final content must be exactly {length_words}
+    words (±50 words tolerance). If the content exceeds this limit, trim content while
+    preserving key safety information and actionable guidance. Focus on accuracy,
+    safety compliance, readability, and removing any content that could enable wrongdoing.
+    Add appropriate safety disclaimers and protective guidance where needed.'
+  expected_output: |-
+    Final polished blog post with structured metadata in JSON format:
+    {
+      "title": "SEO-optimized title",
+      "meta_description": "150-160 character meta description",
+      "outline": ["H2 heading 1", "H2 heading 2", "etc."],
+      "blog_post": "Complete markdown blog post content",
+      "citations": ["Source 1 to verify", "Source 2 to verify", "etc."],
+      "word_count": "actual word count",
+      "word_count_target": "{length_words}",
+      "word_count_compliance": "within/over/under target",
+      "safety_review": "brief summary of safety considerations addressed",
+      "target_audience": "{audience}",
+      "content_tone": "{tone}"
+    }
+    CRITICAL: Final word count must be within ±50 words of {length_words} target. Content must be factually accurate, safety-compliant, and include no policy-violating guidance. All advice should empower users while protecting their digital wellbeing.
+  agent: digital_safety_content_editor
+  context:
+  - write_digital_life_blog_post

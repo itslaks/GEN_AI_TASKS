@@ -1,0 +1,16 @@
+# CREW/AI — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# ── Web framework ──────────────────────────────────────────────────────────
+flask
+flask-cors
+
+# ── CrewAI (multi-agent orchestration) ────────────────────────────────────
+crewai
+
+# ── LLM integration ───────────────────────────────────────────────────────
+langchain-openai
+openai
+
+# ── Utilities ─────────────────────────────────────────────────────────────
+python-dotenv
