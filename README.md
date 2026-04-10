@@ -30,6 +30,9 @@ GEN_AI/
 │   ├── Day_3/             #   ETL chatbot (LangGraph + RAG)
 │   └── Day_4/             #   DataPulse (Data Extraction Agent)
 │
+├── capstone_project/      # Day 5 Capstone Project
+│   └── VedaKrishi_AI/     #   Smart Farming App
+│
 ├── .venv/                 # Python virtual environment
 ├── .gitignore
 └── README.md              # ← You are here
@@ -138,8 +141,8 @@ GEN_AI/
 
 | Item                                                                                                    | Description                                |
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| [Recruitment Pipeline](Assignment/Day_3/Recruitment_Pipeline_Workflow/Recruitment_Pipeline.ipynb)       | Multi-agent hiring workflow with LangGraph |
-| [Broken Workflow Debug](Assignment/Day_3/Debugging_a_Broken_Workflow/Work_Flow_Broken_Code_fixed.ipynb) | Debugged and optimized LangGraph state     |
+| [Recruitment Pipeline](Assignment/Day_3/Recruitment_Pipeline_Workflow/)                                   | Multi-agent hiring workflow with LangGraph |
+| [Broken Workflow Debug](Assignment/Day_3/Debugging_a_Broken_Workflow.docx)                              | Debugged and optimized LangGraph state     |
 
 ### Day 4 — CrewAI & Enterprise Systems
 
