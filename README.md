@@ -45,7 +45,7 @@ GEN_AI/
 | **Day 2** | RAG & Vector Search         |  ✅ 4 tasks  | ✅ 2 items |   ✅ CineAI    |
 | **Day 3** | LangGraph & Multi-Agent     |  ✅ 4 tasks  | ✅ 2 items | ✅ ETL chatbot |
 | **Day 4** | CrewAI & Advanced RAG       |  ✅ 3 tasks  | ✅ 2 items |  ✅ DataPulse  |
-| **Day 5** | Capstone Project            |  🔲 Pending  |     —      |       —        |
+| **Day 5** | Capstone Project            | ✅ 1 project |     —      |       —        |
 
 ---
 
@@ -104,9 +104,17 @@ GEN_AI/
 
 ---
 
-### Day 5 — Capstone Project _(Upcoming)_
+### Day 5 — Capstone Project
 
-The capstone project will be added here.
+| #   | Task                                                                           | Description                                          | Tech Stack                                     | Port |
+| --- | ------------------------------------------------------------------------------ | ---------------------------------------------------- | ---------------------------------------------- | ---- |
+| 1   | [**VedaKrishi AI — Smart Farming App**](capstone_project/VedaKrishi_AI/)       | Voice-first agricultural ecosystem with AI diagnosis | Next.js, Vercel AI SDK, Tailwind, GPT-4o, Groq | 3000 |
+
+> **Day 5 Highlights:**
+>
+> - **VedaKrishi AI** is a fully-featured, production-ready agricultural web application.
+> - Includes multimodal voice interactions, localized language support, and visual crop disease diagnosis.
+> - Live demo available at [veda-krishi-ai.vercel.app](https://veda-krishi-ai.vercel.app/)
 
 ---
 
