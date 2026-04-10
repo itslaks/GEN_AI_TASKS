@@ -7,6 +7,8 @@
 
 A comprehensive collection of AI-powered projects spanning **5 days** of coursework — covering prompt engineering, RAG pipelines, agentic workflows, LangGraph orchestration, and capstone projects. Each project is self-contained with its own README, requirements, and interactive UI.
 
+> 📄 **[Read the Final Training Report](GEN_AI_Training_Report_Lakshan.docx)** for an in-depth summary of the entire program, project highlights, and key learnings.
+
 ---
 
 ## 📁 Repository Structure
@@ -33,6 +35,7 @@ GEN_AI/
 ├── capstone_project/      # Day 5 Capstone Project
 │   └── VedaKrishi_AI/     #   Smart Farming App
 │
+├── GEN_AI_Training_Report_Lakshan.docx  # Final comprehensive training report
 ├── .venv/                 # Python virtual environment
 ├── .gitignore
 └── README.md              # ← You are here
