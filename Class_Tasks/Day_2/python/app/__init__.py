@@ -1,1 +1,0 @@
-"""CineAI application package."""

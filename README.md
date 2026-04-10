@@ -159,7 +159,7 @@ GEN_AI/
 
 | Task                                        | Description                                         | Tech Stack  |
 | ------------------------------------------- | --------------------------------------------------- | ----------- |
-| [CineAI — Movie Engine](Class_Tasks/Day_2/) | Premium recommendation engine with weighted metrics | Flask, Groq |
+| [CineAI — Movie Engine](Class_Tasks/Day_2/Cine_AI/) | Premium recommendation engine with weighted metrics | Flask, Groq |
 
 ### Day 3
 

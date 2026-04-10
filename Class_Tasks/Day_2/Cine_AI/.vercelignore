@@ -1,0 +1,15 @@
+.env
+.git
+.gitignore
+__pycache__
+cache/
+data/
+*.pyc
+*.pyo
+venv/
+node_modules/
+.vscode/
+README.md
+implementation_plan.md
+task.md
+walkthrough.md
